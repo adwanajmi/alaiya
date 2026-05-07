@@ -32,10 +32,13 @@ export const AppProvider = ({ children }) => {
 	const [growthLogs, setGrowthLogs] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [pendingFamilyId, setPendingFamilyId] = useState(null);
-	const [modal, setModal] = useState({ isOpen: false, type: null });
+	const [modal, setModal] = useState({ isOpen: false, type: null, payload: null });
+	const [encouragement, setEncouragement] = useState(null);
 
-	const openModal = (type) => setModal({ isOpen: true, type });
-	const closeModal = () => setModal({ isOpen: false, type: null });
+	const openModal = (type, payload = null) => setModal({ isOpen: true, type, payload });
+	const closeModal = () => setModal({ isOpen: false, type: null, payload: null });
+	
+	const showEncouragement = (msg) => setEncouragement(msg);
 
 	useEffect(() => {
 		return auth.onAuthStateChanged(async (u) => {
@@ -277,6 +280,20 @@ export const AppProvider = ({ children }) => {
 		});
 	};
 
+	const updateLog = async (logId, updatedData) => {
+		const logTimestamp = updatedData.timestamp || Date.now();
+		const dataToSave = { ...updatedData };
+		delete dataToSave.timestamp;
+		await updateDoc(doc(db, "logs", logId), {
+			...dataToSave,
+			timestamp: logTimestamp,
+		});
+	};
+
+	const deleteLog = async (logId) => {
+		await deleteDoc(doc(db, "logs", logId));
+	};
+
 	const addGrowthLog = async (data) => {
 		await addDoc(collection(db, "growth"), {
 			...data,
@@ -298,6 +315,7 @@ export const AppProvider = ({ children }) => {
 				growthLogs,
 				loading,
 				pendingFamilyId,
+				encouragement,
 				login,
 				logout,
 				createFamily,
@@ -310,10 +328,13 @@ export const AppProvider = ({ children }) => {
 				deleteBaby,
 				switchBaby,
 				addLog,
+				updateLog,
+				deleteLog,
 				addGrowthLog,
 				modal,
 				openModal,
-				closeModal
+				closeModal,
+				showEncouragement
 			}}
 		>
 			{children}

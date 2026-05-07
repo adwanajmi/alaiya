@@ -1,13 +1,24 @@
-import Loading from "../../components/ui/Loading"; // 👈 Import it
+import Loading from "../../components/ui/Loading";
 import { ACTIVITY_CONFIG } from "../../constants/activities";
 import { useApp } from "../../contexts/AppContext";
+import { formatTime } from "../../utils/dateUtils";
 
 export default function Timeline() {
-	const { logs, activeBaby } = useApp();
+	const { logs, activeBaby, user, familyMembers, openModal, deleteLog } = useApp();
 
-	const getLogTime = (l) => l.timestamp || l.time || Date.now();
-	const formatTime = (ts) =>
-		new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+	const myRole = familyMembers.find(m => m.userId === user?.uid)?.role || "caregiver";
+	const isSuperAdmin = user?.platformRole === "SUPER_ADMIN";
+
+	const handleDelete = async (logId) => {
+		if (window.confirm("Are you sure you want to delete this log?")) {
+			await deleteLog(logId);
+		}
+	};
+
+	const canEditOrDelete = (log) => {
+		if (isSuperAdmin || myRole === "parent") return true;
+		return log.userId === user?.uid;
+	};
 
 	const TimelineCard = ({ log }) => {
 		const config = ACTIVITY_CONFIG[log.type] || ACTIVITY_CONFIG.note;
@@ -21,7 +32,15 @@ export default function Timeline() {
 							{log.type === "milk" &&
 								(log.feedType === "direct" ? "(Direct)" : "(Bottle)")}
 						</span>
-						<span className="timeline-time">{formatTime(getLogTime(log))}</span>
+						<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+							<span className="timeline-time">{formatTime(log.timestamp || log.time || Date.now())}</span>
+							{canEditOrDelete(log) && (
+								<div style={{ display: "flex", gap: "4px" }}>
+									<button onClick={() => openModal(log.type, log)} style={{ background: "none", border: "none", fontSize: "14px", cursor: "pointer", opacity: 0.6 }}>✏️</button>
+									<button onClick={() => handleDelete(log.id)} style={{ background: "none", border: "none", fontSize: "14px", cursor: "pointer", opacity: 0.6 }}>🗑️</button>
+								</div>
+							)}
+						</div>
 					</div>
 					<div className="timeline-details">
 						{log.type === "milk" &&
@@ -50,8 +69,6 @@ export default function Timeline() {
 	return (
 		<div className="fade-in">
 			<div className="section-title">Full History</div>
-
-			{/* 👈 Dynamic inline loading state fallback */}
 			{!logs ? (
 				<Loading
 					inline
@@ -63,14 +80,7 @@ export default function Timeline() {
 						<TimelineCard key={log.id} log={log} />
 					))}
 					{logs.length === 0 && (
-						<div
-							style={{
-								textAlign: "center",
-								padding: "40px",
-								color: "var(--text3)",
-								fontWeight: 700,
-							}}
-						>
+						<div style={{ textAlign: "center", padding: "40px", color: "var(--text3)", fontWeight: 700 }}>
 							No activities recorded yet.
 						</div>
 					)}

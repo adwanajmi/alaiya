@@ -56,7 +56,7 @@ export default function OnboardingFlow({ step }) {
 		return (
 			<div className="app" style={{ minHeight: "100vh", padding: "24px" }}>
 				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
-					<div className="logo" style={{ fontSize: 30 }}>Alaiya 🌸</div>
+					<div className="logo" style={{ fontSize: 30 }}>Bably 🌸</div>
 					<button onClick={logout} className="cancel-btn" style={{ width: "auto", padding: "6px 16px" }}>Sign Out</button>
 				</div>
 				<div style={{ display: "flex", background: "var(--cream2)", borderRadius: "var(--r)", padding: 4, marginBottom: 20 }}>

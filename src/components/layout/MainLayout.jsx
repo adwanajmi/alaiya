@@ -3,13 +3,13 @@ import { Outlet } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
 import BottomNav from "./BottomNav";
 import ActivityModal from "../modals/ActivityModal";
+import EncouragementOverlay from "../ui/EncouragementOverlay";
 import { ACTIVITY_CONFIG } from "../../constants/activities";
 import { timeSince } from "../../utils/dateUtils";
 
 export default function MainLayout() {
-	const { user, babies, activeBaby, switchBaby, logs } = useApp();
+	const { user, babies, activeBaby, switchBaby, logs, encouragement, showEncouragement } = useApp();
 	
-	// Notification State
 	const [showNotifs, setShowNotifs] = useState(false);
 	const [lastRead, setLastRead] = useState(() => 
 		parseInt(localStorage.getItem(`alaiya_lastRead_${activeBaby?.id}`)) || Date.now()
@@ -18,7 +18,6 @@ export default function MainLayout() {
 
 	const themeClass = activeBaby?.gender === "boy" ? "theme-boy" : "theme-girl";
 
-	// Close dropdown when clicking outside
 	useEffect(() => {
 		const handleClickOutside = (e) => {
 			if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifs(false);
@@ -27,11 +26,9 @@ export default function MainLayout() {
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, []);
 
-	// Derive recent updates from existing logs (Zero-cost notifications!)
-	// Filter out the current user's own logs so they don't get notified of their own actions
 	const recentUpdates = logs
 		.filter((l) => l.userId !== user?.uid)
-		.slice(0, 10); // Show last 10 foreign activities
+		.slice(0, 10);
 
 	const unreadCount = recentUpdates.filter(
 		(l) => (l.timestamp || l.time) > lastRead
@@ -40,14 +37,12 @@ export default function MainLayout() {
 	const handleBellClick = () => {
 		setShowNotifs(!showNotifs);
 		if (!showNotifs) {
-			// Mark as read when opening
 			const now = Date.now();
 			setLastRead(now);
 			localStorage.setItem(`alaiya_lastRead_${activeBaby?.id}`, now.toString());
 		}
 	};
 
-	// Helper to generate readable notification text
 	const getNotifText = (log) => {
 		const name = activeBaby?.name?.split(" ")[0] || "Baby";
 		if (log.type === "milk") return log.feedType === "bottle" ? `was fed ${log.amount}${log.unit}` : `nursed for ${log.duration}m`;
@@ -64,11 +59,7 @@ export default function MainLayout() {
 			<div className="header">
 				<div className="header-top">
 					<div className="logo" style={{ fontFamily: "Fredoka, sans-serif" }}>Alaiya 🌸</div>
-					
-					{/* Header Right Actions */}
 					<div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-						
-						{/* Notification Bell */}
 						<div ref={notifRef} style={{ position: "relative" }}>
 							<button 
 								onClick={handleBellClick}
@@ -82,14 +73,12 @@ export default function MainLayout() {
 								)}
 							</button>
 
-							{/* Dropdown Panel */}
 							{showNotifs && (
 								<div className="fade-in" style={{ position: "absolute", top: "40px", right: "-10px", width: "300px", background: "var(--white)", borderRadius: "var(--r)", boxShadow: "0 10px 40px rgba(0,0,0,0.12)", border: "1px solid var(--border)", overflow: "hidden", zIndex: 100 }}>
 									<div style={{ padding: "14px 16px", background: "var(--cream2)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 										<span style={{ fontWeight: 800, fontSize: "14px", color: "var(--text)" }}>Recent Activity</span>
 										{unreadCount > 0 && <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--rose-dark)" }}>{unreadCount} New</span>}
 									</div>
-									
 									<div style={{ maxHeight: "320px", overflowY: "auto" }}>
 										{recentUpdates.length > 0 ? (
 											recentUpdates.map((log) => {
@@ -120,15 +109,9 @@ export default function MainLayout() {
 								</div>
 							)}
 						</div>
-
-						{/* Avatar */}
-						<div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--cream2)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, border: "2px solid var(--peach)", color: "var(--rose-dark)" }}>
-							{user?.displayName?.charAt(0)}
-						</div>
+						
 					</div>
 				</div>
-				
-				{/* Baby Switcher */}
 				{babies.length > 0 && (
 					<div className="baby-switcher">
 						{babies.map(baby => (
@@ -137,7 +120,6 @@ export default function MainLayout() {
 								className={`baby-tab ${activeBaby?.id === baby.id ? "active" : ""}`}
 								onClick={() => {
 									switchBaby(baby.id);
-									// Refresh lastRead for the new baby context
 									setLastRead(parseInt(localStorage.getItem(`alaiya_lastRead_${baby.id}`)) || Date.now());
 								}}
 							>
@@ -147,13 +129,17 @@ export default function MainLayout() {
 					</div>
 				)}
 			</div>
-
 			<div className="content">
 				<Outlet /> 
 			</div>
-
 			<BottomNav />
 			<ActivityModal />
+			{encouragement && (
+				<EncouragementOverlay 
+					message={encouragement} 
+					onFinished={() => showEncouragement(null)} 
+				/>
+			)}
 		</div>
 	);
 }

@@ -574,3 +574,20 @@ body {
 	border-color: var(--rose-dark);
 	box-shadow: 0 4px 12px rgba(204, 91, 67, 0.12);
 }
+
+/* Animation for the floating appreciation card */
+.encouragement-enter {
+  transform: translate(-50%, -40%) scale(0.9);
+  opacity: 0;
+}
+.encouragement-active {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+/* Update modal handled to be softer */
+.modal {
+    background: var(--white);
+    border-top-left-radius: 40px; /* Softer corners */
+    border-top-right-radius: 40px;
+}

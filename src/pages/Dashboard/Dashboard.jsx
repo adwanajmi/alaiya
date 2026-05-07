@@ -90,7 +90,7 @@ export default function Dashboard() {
 						color="var(--color-milk)" icon="🍼" 
 					/>
 					<MetricCard 
-						title="Direct Sessions" 
+						title="Direct Feeding" 
 						value={directSessions} 
 						subtext={directLogs[0] ? `Last: ${timeSince(getLogTime(directLogs[0]))}` : "No direct feeds"}
 						color="var(--peach)" icon="🤱" 
