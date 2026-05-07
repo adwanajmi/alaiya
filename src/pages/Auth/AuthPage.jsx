@@ -16,7 +16,7 @@ export default function AuthPage() {
 			}}
 		>
 			<div className="logo" style={{ fontSize: 44, marginBottom: 32 }}>
-				alai<span>ya</span> 🌸
+				bab<span>ly</span> 🌸
 			</div>
 			<p
 				style={{

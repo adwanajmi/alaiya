@@ -22,6 +22,7 @@ export default function OnboardingFlow({ step }) {
 	const [babyDob, setBabyDob] = useState("");
 	const [babyWeight, setBabyWeight] = useState("");
 	const [babyHeight, setBabyHeight] = useState("");
+	const [babyGender, setBabyGender] = useState("girl");
 
 	if (step === "role-select") {
 		return (
@@ -215,95 +216,37 @@ export default function OnboardingFlow({ step }) {
 
 	if (step === "add-baby") {
 		return (
-			<div
-				className="app"
-				style={{
-					minHeight: "100vh",
-					padding: "24px",
-					display: "flex",
-					flexDirection: "column",
-					justifyContent: "center",
-				}}
-			>
-				<div
-					style={{
-						background: "var(--white)",
-						padding: "24px",
-						borderRadius: "var(--r)",
-					}}
-				>
-					<div style={{ fontSize: 36, textAlign: "center", marginBottom: 8 }}>
-						🍼
+			<div className="app" style={{ minHeight: "100vh", padding: "24px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+				<div style={{ background: "var(--white)", padding: "24px", borderRadius: "var(--r)", boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
+					<div style={{ fontSize: 36, textAlign: "center", marginBottom: 8 }}>🍼</div>
+					<h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 20, textAlign: "center" }}>Add Your Baby</h2>
+					
+					<div className="type-btns" style={{ marginBottom: 16 }}>
+						<button className={`type-btn ${babyGender === "girl" ? "selected" : ""}`} onClick={() => setBabyGender("girl")}>👧 Girl</button>
+						<button className={`type-btn ${babyGender === "boy" ? "selected" : ""}`} onClick={() => setBabyGender("boy")}>👦 Boy</button>
 					</div>
-					<h2
-						style={{
-							fontSize: 18,
-							fontWeight: 800,
-							marginBottom: 16,
-							textAlign: "center",
-						}}
-					>
-						Add Your Baby
-					</h2>
 
 					<div className="form-group" style={{ marginBottom: 12 }}>
 						<label className="form-label">Name</label>
-						<input
-							type="text"
-							placeholder="e.g. Amara"
-							value={babyName}
-							onChange={(e) => setBabyName(e.target.value)}
-							className="form-input"
-						/>
+						<input type="text" placeholder="e.g. Alaiya" value={babyName} onChange={(e) => setBabyName(e.target.value)} className="form-input" />
 					</div>
 					<div className="form-group" style={{ marginBottom: 12 }}>
 						<label className="form-label">Date of Birth</label>
-						<input
-							type="date"
-							value={babyDob}
-							onChange={(e) => setBabyDob(e.target.value)}
-							className="form-input"
-						/>
+						<input type="date" value={babyDob} onChange={(e) => setBabyDob(e.target.value)} className="form-input" />
 					</div>
-
-					<div style={{ display: "flex", gap: "12px", marginBottom: 20 }}>
+					
+					<div style={{ display: "flex", gap: "12px", marginBottom: 24 }}>
 						<div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
 							<label className="form-label">Weight (kg)</label>
-							<input
-								type="number"
-								step="0.01"
-								placeholder="e.g. 3.5"
-								value={babyWeight}
-								onChange={(e) => setBabyWeight(e.target.value)}
-								className="form-input"
-							/>
+							<input type="number" step="0.01" placeholder="e.g. 3.5" value={babyWeight} onChange={(e) => setBabyWeight(e.target.value)} className="form-input" />
 						</div>
 						<div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
 							<label className="form-label">Height (cm)</label>
-							<input
-								type="number"
-								step="0.1"
-								placeholder="e.g. 50"
-								value={babyHeight}
-								onChange={(e) => setBabyHeight(e.target.value)}
-								className="form-input"
-							/>
+							<input type="number" step="0.1" placeholder="e.g. 50" value={babyHeight} onChange={(e) => setBabyHeight(e.target.value)} className="form-input" />
 						</div>
 					</div>
 
-					<button
-						onClick={() =>
-							addBaby({
-								name: babyName,
-								dob: babyDob,
-								weight: babyWeight,
-								height: babyHeight,
-							})
-						}
-						className="submit-btn"
-						disabled={!babyName || !babyDob}
-						style={{ opacity: !babyName || !babyDob ? 0.5 : 1 }}
-					>
+					<button onClick={() => addBaby({ name: babyName, dob: babyDob, weight: babyWeight, height: babyHeight, gender: babyGender })} className="submit-btn" disabled={!babyName || !babyDob} style={{ opacity: (!babyName || !babyDob) ? 0.5 : 1 }}>
 						Save Profile
 					</button>
 				</div>

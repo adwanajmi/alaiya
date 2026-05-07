@@ -10,6 +10,7 @@ import {
 	setDoc,
 	updateDoc,
 	where,
+	deleteDoc,
 } from "firebase/firestore";
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db, googleProvider } from "../services/firebase";
@@ -25,10 +26,13 @@ export const AppProvider = ({ children }) => {
 	const [familyMembers, setFamilyMembers] = useState([]);
 	const [babies, setBabies] = useState([]);
 	const [activeBaby, setActiveBaby] = useState(null);
+	
 	const [logs, setLogs] = useState([]);
+	const [growthLogs, setGrowthLogs] = useState([]); 
+	
 	const [loading, setLoading] = useState(true);
-	const [pendingFamilyId, setPendingFamilyId] = useState(null); // waiting for role selection
-
+	const [pendingFamilyId, setPendingFamilyId] = useState(null);
+	
 	const [modal, setModal] = useState({ isOpen: false, type: null });
 	const openModal = (type) => setModal({ isOpen: true, type });
 	const closeModal = () => setModal({ isOpen: false, type: null });
@@ -42,20 +46,18 @@ export const AppProvider = ({ children }) => {
 						uid: u.uid,
 						email: u.email,
 						displayName: u.displayName,
-						photoURL: u.photoURL ?? null,
+						photoURL: u.photoURL,
 						currentFamilyId: null,
-						joinedAt: Date.now(),
 					});
 					setUser({
 						uid: u.uid,
 						email: u.email,
 						displayName: u.displayName,
-						photoURL: u.photoURL ?? null,
+						photoURL: u.photoURL,
 						currentFamilyId: null,
-						joinedAt: Date.now(),
 					});
 				} else {
-					setUser(userDoc.data());
+					setUser({ ...userDoc.data(), photoURL: u.photoURL });
 				}
 			} else {
 				setUser(null);
@@ -64,13 +66,12 @@ export const AppProvider = ({ children }) => {
 				setBabies([]);
 				setActiveBaby(null);
 				setLogs([]);
-				setPendingFamilyId(null);
+				setGrowthLogs([]);
 			}
 			setLoading(false);
 		});
 	}, []);
 
-	// ── Real-time family + babies + members listener ──────────────────────────
 	useEffect(() => {
 		if (!user?.currentFamilyId) return;
 
@@ -78,6 +79,16 @@ export const AppProvider = ({ children }) => {
 			doc(db, "families", user.currentFamilyId),
 			(d) => {
 				if (d.exists()) setFamily({ id: d.id, ...d.data() });
+			},
+		);
+
+		const unsubMembers = onSnapshot(
+			query(
+				collection(db, "family_members"),
+				where("familyId", "==", user.currentFamilyId),
+			),
+			(s) => {
+				setFamilyMembers(s.docs.map((d) => ({ id: d.id, ...d.data() })));
 			},
 		);
 
@@ -89,51 +100,24 @@ export const AppProvider = ({ children }) => {
 			(s) => {
 				const b = s.docs.map((d) => ({ id: d.id, ...d.data() }));
 				setBabies(b);
-				if (b.length > 0 && !activeBaby) setActiveBaby(b[0]);
-			},
-		);
-
-		// Real-time family members with user profile enrichment
-		const unsubMembers = onSnapshot(
-			query(
-				collection(db, "family_members"),
-				where("familyId", "==", user.currentFamilyId),
-				where("status", "==", "active"),
-			),
-			async (s) => {
-				const members = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-				// Enrich each member with their user profile (displayName, photoURL)
-				const enriched = await Promise.all(
-					members.map(async (m) => {
-						try {
-							const userSnap = await getDoc(doc(db, "users", m.userId));
-							if (userSnap.exists()) {
-								const u = userSnap.data();
-								return {
-									...m,
-									displayName: u.displayName ?? m.email,
-									photoURL: u.photoURL ?? null,
-								};
-							}
-						} catch (_) {}
-						return { ...m, displayName: m.email, photoURL: null };
-					}),
-				);
-				setFamilyMembers(enriched);
+				// If babies exist and no active baby is set, or the active baby was deleted, default to the first one
+				if (b.length > 0 && (!activeBaby || !b.find(x => x.id === activeBaby.id))) {
+					setActiveBaby(b[0]);
+				}
 			},
 		);
 
 		return () => {
 			unsubFamily();
-			unsubBabies();
 			unsubMembers();
+			unsubBabies();
 		};
 	}, [user?.currentFamilyId]);
 
-	// ── Logs listener ─────────────────────────────────────────────────────────
 	useEffect(() => {
 		if (!user?.currentFamilyId || !activeBaby?.id) return;
-		return onSnapshot(
+		
+		const unsubLogs = onSnapshot(
 			query(
 				collection(db, "logs"),
 				where("familyId", "==", user.currentFamilyId),
@@ -150,12 +134,31 @@ export const AppProvider = ({ children }) => {
 				);
 			},
 		);
+
+		const unsubGrowth = onSnapshot(
+			query(
+				collection(db, "growth"),
+				where("familyId", "==", user.currentFamilyId),
+				where("babyId", "==", activeBaby.id)
+			),
+			(s) => {
+				setGrowthLogs(
+					s.docs
+						.map((d) => ({ id: d.id, ...d.data() }))
+						.sort((a, b) => b.timestamp - a.timestamp)
+				);
+			}
+		);
+
+		return () => {
+			unsubLogs();
+			unsubGrowth();
+		};
 	}, [user?.currentFamilyId, activeBaby?.id]);
 
 	const login = () => signInWithPopup(auth, googleProvider);
 	const logout = () => signOut(auth);
 
-	// ── Create family (creator is always admin) ───────────────────────────────
 	const createFamily = async (familyName) => {
 		const joinCode = generateJoinCode();
 		const familyRef = await addDoc(collection(db, "families"), {
@@ -163,22 +166,25 @@ export const AppProvider = ({ children }) => {
 			joinCode,
 			createdAt: Date.now(),
 		});
+
 		const memberId = `${familyRef.id}_${user.uid}`;
 		await setDoc(doc(db, "family_members", memberId), {
 			familyId: familyRef.id,
 			userId: user.uid,
 			email: user.email,
-			role: "admin",
+			displayName: user.displayName,
+			photoURL: user.photoURL || null,
+			role: "parent",
 			status: "active",
 			joinedAt: Date.now(),
 		});
+
 		await updateDoc(doc(db, "users", user.uid), {
 			currentFamilyId: familyRef.id,
 		});
 		setUser((prev) => ({ ...prev, currentFamilyId: familyRef.id }));
 	};
 
-	// ── Join family — returns error string or null, sets pendingFamilyId ──────
 	const joinFamily = async (code) => {
 		const q = query(
 			collection(db, "families"),
@@ -187,38 +193,25 @@ export const AppProvider = ({ children }) => {
 		const snap = await getDocs(q);
 		if (snap.empty) return "Family not found. Check the code and try again.";
 
-		const familyId = snap.docs[0].id;
-
-		// Check if already a member
-		const existingMember = await getDoc(
-			doc(db, "family_members", `${familyId}_${user.uid}`),
-		);
-		if (existingMember.exists()) {
-			// Already a member — just switch into the family
-			await updateDoc(doc(db, "users", user.uid), {
-				currentFamilyId: familyId,
-			});
-			setUser((prev) => ({ ...prev, currentFamilyId: familyId }));
-			return null;
-		}
-
-		// New member — pause and ask for role
-		setPendingFamilyId(familyId);
+		setPendingFamilyId(snap.docs[0].id);
 		return null;
 	};
 
-	// ── Confirm role after joining ────────────────────────────────────────────
 	const confirmRole = async (role) => {
 		if (!pendingFamilyId) return;
+
 		const memberId = `${pendingFamilyId}_${user.uid}`;
 		await setDoc(doc(db, "family_members", memberId), {
 			familyId: pendingFamilyId,
 			userId: user.uid,
 			email: user.email,
-			role, // "parent" | "caregiver"
+			displayName: user.displayName,
+			photoURL: user.photoURL || null,
+			role,
 			status: "active",
 			joinedAt: Date.now(),
 		});
+
 		await updateDoc(doc(db, "users", user.uid), {
 			currentFamilyId: pendingFamilyId,
 		});
@@ -228,16 +221,41 @@ export const AppProvider = ({ children }) => {
 
 	const cancelRoleSelection = () => setPendingFamilyId(null);
 
+	const removeMember = async (memberDocId, memberUserId) => {
+		try {
+			await deleteDoc(doc(db, "family_members", memberDocId));
+			await updateDoc(doc(db, "users", memberUserId), { currentFamilyId: null });
+			if (memberUserId === user.uid) {
+				setUser((prev) => ({ ...prev, currentFamilyId: null }));
+				setFamily(null);
+				setBabies([]);
+				setLogs([]);
+			}
+		} catch (error) {
+			console.error("Error removing member:", error);
+			alert("Failed to remove member. You might not have permission.");
+		}
+	};
+
 	const addBaby = async (babyData) => {
 		const docRef = await addDoc(collection(db, "babies"), {
 			...babyData,
 			familyId: user.currentFamilyId,
 		});
+		// Automatically switch to the newly created baby
 		setActiveBaby({
 			id: docRef.id,
 			...babyData,
 			familyId: user.currentFamilyId,
 		});
+	};
+
+	const updateBaby = async (babyId, babyData) => {
+		await updateDoc(doc(db, "babies", babyId), babyData);
+	};
+
+	const deleteBaby = async (babyId) => {
+		await deleteDoc(doc(db, "babies", babyId));
 	};
 
 	const switchBaby = (babyId) => {
@@ -255,6 +273,15 @@ export const AppProvider = ({ children }) => {
 		});
 	};
 
+	const addGrowthLog = async (data) => {
+		await addDoc(collection(db, "growth"), {
+			...data,
+			familyId: user.currentFamilyId,
+			babyId: activeBaby.id,
+			timestamp: data.timestamp || Date.now(),
+		});
+	};
+
 	return (
 		<AppContext.Provider
 			value={{
@@ -264,6 +291,7 @@ export const AppProvider = ({ children }) => {
 				babies,
 				activeBaby,
 				logs,
+				growthLogs, 
 				loading,
 				pendingFamilyId,
 				login,
@@ -272,12 +300,16 @@ export const AppProvider = ({ children }) => {
 				joinFamily,
 				confirmRole,
 				cancelRoleSelection,
+				removeMember,
 				addBaby,
+				updateBaby,
+				deleteBaby,
 				switchBaby,
 				addLog,
+				addGrowthLog, 
 				modal,
 				openModal,
-				closeModal,
+				closeModal
 			}}
 		>
 			{children}
