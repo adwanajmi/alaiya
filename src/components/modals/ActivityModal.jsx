@@ -3,7 +3,7 @@ import { ACTIVITY_CONFIG } from "../../constants/activities";
 import { useApp } from "../../contexts/AppContext";
 
 export default function ActivityModal() {
-	const { modal, closeModal, addLog, openModal } = useApp();
+	const { modal, closeModal, addLog, openModal, activeBaby } = useApp();
 	const [formState, setFormState] = useState({
 		amount: 120,
 		unit: "ml",
@@ -15,11 +15,19 @@ export default function ActivityModal() {
 		name: "",
 		note: "",
 	});
+	const [isSaving, setIsSaving] = useState(false);
 
 	if (!modal.isOpen) return null;
 
-	const handleModalSubmit = () => {
+	const handleModalSubmit = async () => {
+		if (!activeBaby) {
+			alert("Error: No active baby profile found.");
+			return;
+		}
+
+		setIsSaving(true);
 		const logData = { type: modal.type, text: formState.note };
+		
 		if (modal.type === "milk") {
 			logData.feedType = formState.feedType;
 			if (formState.feedType === "bottle") {
@@ -40,19 +48,28 @@ export default function ActivityModal() {
 		if (modal.type === "meds") logData.name = formState.name || "Medication";
 		if (modal.type === "sleep") logData.isSleeping = true;
 
-		addLog(logData);
-		closeModal();
-		setFormState({
-			amount: 120,
-			unit: "ml",
-			feedType: "direct",
-			duration: 15,
-			breastSide: "left",
-			bottleType: "breastmilk",
-			diaperType: "wet",
-			name: "",
-			note: "",
-		});
+		try {
+			await addLog(logData);
+			
+			// Reset and close only on success
+			setFormState({
+				amount: 120,
+				unit: "ml",
+				feedType: "direct",
+				duration: 15,
+				breastSide: "left",
+				bottleType: "breastmilk",
+				diaperType: "wet",
+				name: "",
+				note: "",
+			});
+			closeModal();
+		} catch (error) {
+			console.error("Save Error:", error);
+			alert("Failed to save. Check browser console.");
+		} finally {
+			setIsSaving(false);
+		}
 	};
 
 	const adjAmount = (delta) => {
@@ -84,7 +101,7 @@ export default function ActivityModal() {
 		<div
 			className="modal-overlay"
 			onMouseDown={(e) => {
-				if (e.target === e.currentTarget) closeModal();
+				if (e.target === e.currentTarget && !isSaving) closeModal();
 			}}
 		>
 			<div className="modal">
@@ -355,25 +372,27 @@ export default function ActivityModal() {
 				)}
 
 				{modal.type !== "menu" && (
-					<div className="form-group">
-						<label className="form-label">Notes (Optional)</label>
-						<input
-							className="form-input"
-							placeholder="e.g. Fussy today"
-							value={formState.note}
-							onChange={(e) =>
-								setFormState({ ...formState, note: e.target.value })
-							}
-						/>
-					</div>
-				)}
-
-				{modal.type !== "menu" && (
 					<>
-						<button className="submit-btn" onClick={handleModalSubmit}>
-							Save Activity
+						<div className="form-group">
+							<label className="form-label">Notes (Optional)</label>
+							<input
+								className="form-input"
+								placeholder="e.g. Fussy today"
+								value={formState.note}
+								onChange={(e) =>
+									setFormState({ ...formState, note: e.target.value })
+								}
+							/>
+						</div>
+						<button 
+							className="submit-btn" 
+							onClick={handleModalSubmit}
+							disabled={isSaving}
+							style={{ opacity: isSaving ? 0.7 : 1 }}
+						>
+							{isSaving ? "Saving..." : "Save Activity"}
 						</button>
-						<button className="cancel-btn" onClick={closeModal}>
+						<button className="cancel-btn" onClick={closeModal} disabled={isSaving}>
 							Cancel
 						</button>
 					</>
