@@ -29,6 +29,10 @@ export const AppProvider = ({ children }) => {
 	const [loading, setLoading] = useState(true);
 	const [pendingFamilyId, setPendingFamilyId] = useState(null); // waiting for role selection
 
+	const [modal, setModal] = useState({ isOpen: false, type: null });
+	const openModal = (type) => setModal({ isOpen: true, type });
+	const closeModal = () => setModal({ isOpen: false, type: null });
+
 	useEffect(() => {
 		return auth.onAuthStateChanged(async (u) => {
 			if (u) {
@@ -271,6 +275,9 @@ export const AppProvider = ({ children }) => {
 				addBaby,
 				switchBaby,
 				addLog,
+				modal,
+				openModal,
+				closeModal,
 			}}
 		>
 			{children}
