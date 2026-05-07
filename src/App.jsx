@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 import Loading from "./components/ui/Loading"; // 👈 Import the new component
 import { useApp } from "./contexts/AppContext";
@@ -21,7 +21,7 @@ export default function App() {
 	if (babies.length === 0) return <OnboardingFlow step="add-baby" />;
 
 	return (
-		<BrowserRouter>
+		<HashRouter>
 			<Routes>
 				<Route element={<MainLayout />}>
 					<Route path="/" element={<Dashboard />} />
@@ -31,6 +31,6 @@ export default function App() {
 				</Route>
 				<Route path="*" element={<Navigate to="/" replace />} />
 			</Routes>
-		</BrowserRouter>
+		</HashRouter>
 	);
 }
