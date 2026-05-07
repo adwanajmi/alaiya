@@ -264,12 +264,16 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const addLog = async (logData) => {
+		const logTimestamp = logData.timestamp || Date.now();
+		const dataToSave = { ...logData };
+		delete dataToSave.timestamp;
+
 		await addDoc(collection(db, "logs"), {
-			...logData,
+			...dataToSave,
 			familyId: user.currentFamilyId,
 			babyId: activeBaby.id,
 			userId: user.uid,
-			timestamp: Date.now(),
+			timestamp: logTimestamp,
 		});
 	};
 

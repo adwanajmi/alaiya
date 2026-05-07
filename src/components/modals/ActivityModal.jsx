@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ACTIVITY_CONFIG } from "../../constants/activities";
 import { useApp } from "../../contexts/AppContext";
 
@@ -14,8 +14,23 @@ export default function ActivityModal() {
 		diaperType: "wet",
 		name: "",
 		note: "",
+		logDate: "",
+		logTime: "",
 	});
 	const [isSaving, setIsSaving] = useState(false);
+
+	useEffect(() => {
+		if (modal.isOpen && modal.type !== "menu") {
+			const d = new Date();
+			const offset = d.getTimezoneOffset() * 60000;
+			const local = new Date(d.getTime() - offset);
+			setFormState((prev) => ({
+				...prev,
+				logDate: local.toISOString().split("T")[0],
+				logTime: local.toISOString().split("T")[1].substring(0, 5),
+			}));
+		}
+	}, [modal.isOpen, modal.type]);
 
 	if (!modal.isOpen) return null;
 
@@ -26,7 +41,15 @@ export default function ActivityModal() {
 		}
 
 		setIsSaving(true);
-		const logData = { type: modal.type, text: formState.note };
+		
+		let customTimestamp = Date.now();
+		if (formState.logDate && formState.logTime) {
+			const [year, month, day] = formState.logDate.split("-");
+			const [hour, minute] = formState.logTime.split(":");
+			customTimestamp = new Date(year, month - 1, day, hour, minute).getTime();
+		}
+
+		const logData = { type: modal.type, text: formState.note, timestamp: customTimestamp };
 		
 		if (modal.type === "milk") {
 			logData.feedType = formState.feedType;
@@ -51,7 +74,6 @@ export default function ActivityModal() {
 		try {
 			await addLog(logData);
 			
-			// Reset and close only on success
 			setFormState({
 				amount: 120,
 				unit: "ml",
@@ -62,6 +84,8 @@ export default function ActivityModal() {
 				diaperType: "wet",
 				name: "",
 				note: "",
+				logDate: "",
+				logTime: "",
 			});
 			closeModal();
 		} catch (error) {
@@ -334,23 +358,6 @@ export default function ActivityModal() {
 						<div className="modal-title">
 							{modal.type === "sleep" ? "😴 Log Sleep" : "🛁 Log Bath"}
 						</div>
-						<div
-							style={{
-								background: "var(--cream2)",
-								padding: 20,
-								borderRadius: "var(--r2)",
-								textAlign: "center",
-								marginBottom: 20,
-								fontWeight: 700,
-								color: "var(--text2)",
-							}}
-						>
-							Will be logged at{" "}
-							{new Date().toLocaleTimeString([], {
-								hour: "2-digit",
-								minute: "2-digit",
-							})}
-						</div>
 					</>
 				)}
 
@@ -373,6 +380,30 @@ export default function ActivityModal() {
 
 				{modal.type !== "menu" && (
 					<>
+						<div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
+							<div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+								<label className="form-label">Date</label>
+								<input
+									type="date"
+									value={formState.logDate}
+									onChange={(e) =>
+										setFormState({ ...formState, logDate: e.target.value })
+									}
+									className="form-input"
+								/>
+							</div>
+							<div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+								<label className="form-label">Time</label>
+								<input
+									type="time"
+									value={formState.logTime}
+									onChange={(e) =>
+										setFormState({ ...formState, logTime: e.target.value })
+									}
+									className="form-input"
+								/>
+							</div>
+						</div>
 						<div className="form-group">
 							<label className="form-label">Notes (Optional)</label>
 							<input

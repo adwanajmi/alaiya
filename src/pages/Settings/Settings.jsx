@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useApp } from "../../contexts/AppContext";
+import { useNavigate } from "react-router-dom";
 
 export default function Settings() {
 	const { user, family, familyMembers, babies, addBaby, updateBaby, deleteBaby, removeMember, logout } = useApp();
-
+	const navigate = useNavigate();
 	const [editingBabyId, setEditingBabyId] = useState(null); 
 	const [showQR, setShowQR] = useState(false);
 	
@@ -226,6 +227,17 @@ export default function Settings() {
 					);
 				})}
 			</div>
+
+			{/* SUPER ADMIN BUTTON (Hidden from normal users) */}
+            {user?.platformRole === "SUPER_ADMIN" && (
+                <button 
+                    onClick={() => navigate("/admin")} 
+                    className="submit-btn" 
+                    style={{ background: "#33312e", color: "white", marginBottom: "16px" }}
+                >
+                    👑 Open Platform Admin
+                </button>
+            )}
 
 			<button onClick={logout} className="cancel-btn" style={{ background: "var(--white)", border: "2px solid var(--cream2)", color: "var(--text2)", borderRadius: "var(--r)" }}>
 				Sign Out
