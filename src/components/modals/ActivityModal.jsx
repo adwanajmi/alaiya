@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ACTIVITY_CONFIG } from "../../constants/activities"; // We'll create this file in step 5!
+import { ACTIVITY_CONFIG } from "../../constants/activities";
 import { useApp } from "../../contexts/AppContext";
 
 export default function ActivityModal() {
@@ -9,7 +9,8 @@ export default function ActivityModal() {
 		unit: "ml",
 		feedType: "direct",
 		duration: 15,
-		breastSide: "both",
+		breastSide: "left",
+		bottleType: "breastmilk",
 		diaperType: "wet",
 		name: "",
 		note: "",
@@ -24,6 +25,7 @@ export default function ActivityModal() {
 			if (formState.feedType === "bottle") {
 				logData.amount = formState.amount;
 				logData.unit = formState.unit;
+				logData.bottleType = formState.bottleType;
 			} else {
 				logData.duration = formState.duration;
 				logData.breastSide = formState.breastSide;
@@ -40,13 +42,13 @@ export default function ActivityModal() {
 
 		addLog(logData);
 		closeModal();
-		// Reset form for next time
 		setFormState({
 			amount: 120,
 			unit: "ml",
 			feedType: "direct",
 			duration: 15,
-			breastSide: "both",
+			breastSide: "left",
+			bottleType: "breastmilk",
 			diaperType: "wet",
 			name: "",
 			note: "",
@@ -69,12 +71,11 @@ export default function ActivityModal() {
 		}));
 
 	const setUnit = (unit) => {
+		if (formState.unit === unit) return;
 		setFormState((prev) => {
 			let newAmt = prev.amount;
-			if (unit === "oz" && prev.amount >= 10)
-				newAmt = Math.round((prev.amount / 30) * 2) / 2;
-			if (unit === "ml" && prev.amount <= 15)
-				newAmt = Math.round(prev.amount * 30);
+			if (unit === "oz") newAmt = Math.round((prev.amount / 30) * 2) / 2;
+			if (unit === "ml") newAmt = Math.round(prev.amount * 30);
 			return { ...prev, unit, amount: newAmt };
 		});
 	};
@@ -89,7 +90,6 @@ export default function ActivityModal() {
 			<div className="modal">
 				<div className="modal-handle"></div>
 
-				{/* FULL MENU (More Button) */}
 				{modal.type === "menu" && (
 					<>
 						<div className="modal-title">Log Activity</div>
@@ -110,7 +110,6 @@ export default function ActivityModal() {
 					</>
 				)}
 
-				{/* PUMP */}
 				{modal.type === "pump" && (
 					<>
 						<div className="modal-title">💧 Breast Pump</div>
@@ -164,7 +163,6 @@ export default function ActivityModal() {
 					</>
 				)}
 
-				{/* MILK (Direct/Bottle) */}
 				{modal.type === "milk" && (
 					<>
 						<div className="modal-title">🍼 Feed Baby</div>
@@ -194,7 +192,7 @@ export default function ActivityModal() {
 								<div className="form-group">
 									<label className="form-label">Side</label>
 									<div className="type-btns">
-										{["left", "both", "right"].map((side) => (
+										{["left", "right"].map((side) => (
 											<button
 												key={side}
 												onClick={() =>
@@ -231,7 +229,44 @@ export default function ActivityModal() {
 						) : (
 							<>
 								<div className="form-group">
-									<label className="form-label">Amount</label>
+									<label className="form-label">Milk Type</label>
+									<div className="type-btns">
+										<button
+											className={`type-btn ${formState.bottleType === "breastmilk" ? "selected" : ""}`}
+											onClick={() =>
+												setFormState({ ...formState, bottleType: "breastmilk" })
+											}
+										>
+											Breast Milk
+										</button>
+										<button
+											className={`type-btn ${formState.bottleType === "formula" ? "selected" : ""}`}
+											onClick={() =>
+												setFormState({ ...formState, bottleType: "formula" })
+											}
+										>
+											Formula
+										</button>
+									</div>
+								</div>
+								<div className="form-group">
+									<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+										<label className="form-label" style={{ marginBottom: 0 }}>Amount</label>
+										<div style={{ display: "flex", gap: "4px", background: "var(--cream2)", padding: "2px", borderRadius: "8px" }}>
+											<button
+												style={{ padding: "4px 12px", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, background: formState.unit === "ml" ? "var(--white)" : "transparent", color: formState.unit === "ml" ? "var(--rose-dark)" : "var(--text3)", boxShadow: formState.unit === "ml" ? "0 2px 4px rgba(0,0,0,0.05)" : "none", cursor: "pointer" }}
+												onClick={() => setUnit("ml")}
+											>
+												ml
+											</button>
+											<button
+												style={{ padding: "4px 12px", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, background: formState.unit === "oz" ? "var(--white)" : "transparent", color: formState.unit === "oz" ? "var(--rose-dark)" : "var(--text3)", boxShadow: formState.unit === "oz" ? "0 2px 4px rgba(0,0,0,0.05)" : "none", cursor: "pointer" }}
+												onClick={() => setUnit("oz")}
+											>
+												oz
+											</button>
+										</div>
+									</div>
 									<div className="amount-row">
 										<button
 											className="amount-btn"
@@ -251,7 +286,6 @@ export default function ActivityModal() {
 					</>
 				)}
 
-				{/* DIAPER */}
 				{modal.type === "diaper" && (
 					<>
 						<div className="modal-title">🧷 Diaper Change</div>
@@ -278,7 +312,6 @@ export default function ActivityModal() {
 					</>
 				)}
 
-				{/* SLEEP / BATH (Quick Loggers) */}
 				{(modal.type === "sleep" || modal.type === "bath") && (
 					<>
 						<div className="modal-title">
@@ -304,7 +337,6 @@ export default function ActivityModal() {
 					</>
 				)}
 
-				{/* MEDS */}
 				{modal.type === "meds" && (
 					<>
 						<div className="modal-title">💊 Medication</div>
@@ -322,7 +354,6 @@ export default function ActivityModal() {
 					</>
 				)}
 
-				{/* Optional Notes for everything except Menu */}
 				{modal.type !== "menu" && (
 					<div className="form-group">
 						<label className="form-label">Notes (Optional)</label>

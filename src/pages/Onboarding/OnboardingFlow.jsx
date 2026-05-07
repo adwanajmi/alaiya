@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApp } from "../../contexts/AppContext";
-import { Scanner } from '@yudiel/react-qr-scanner';
+import { Scanner } from "@yudiel/react-qr-scanner";
 
 export default function OnboardingFlow({ step }) {
 	const {
@@ -17,62 +17,35 @@ export default function OnboardingFlow({ step }) {
 	const [joinCode, setJoinCode] = useState("");
 	const [joinError, setJoinError] = useState("");
 	const [joining, setJoining] = useState(false);
+	const [isScanning, setIsScanning] = useState(false);
 
-	// Added weight and height state
 	const [babyName, setBabyName] = useState("");
 	const [babyDob, setBabyDob] = useState("");
 	const [babyWeight, setBabyWeight] = useState("");
 	const [babyHeight, setBabyHeight] = useState("");
 	const [babyGender, setBabyGender] = useState("girl");
 
-	const [isScanning, setIsScanning] = useState(false);
+	const handleScan = async (results) => {
+		if (results && results.length > 0) {
+			const code = results[0].rawValue;
+			setJoinCode(code);
+			setIsScanning(false);
+			setJoining(true);
+			const err = await joinFamily(code);
+			if (err) setJoinError(err);
+			setJoining(false);
+		}
+	};
 
 	if (step === "role-select") {
 		return (
 			<div className="app" style={{ minHeight: "100vh", padding: "24px" }}>
-				<div
-					style={{
-						background: "var(--white)",
-						padding: "24px",
-						borderRadius: "var(--r)",
-						border: "1px solid var(--border)",
-						marginTop: "40px",
-					}}
-				>
-					<h2
-						style={{
-							fontSize: 18,
-							fontWeight: 800,
-							marginBottom: 8,
-							textAlign: "center",
-						}}
-					>
-						Choose your role
-					</h2>
-					<div
-						style={{
-							display: "flex",
-							flexDirection: "column",
-							gap: "12px",
-							marginTop: 24,
-						}}
-					>
-						<button
-							onClick={() => confirmRole("parent")}
-							className="submit-btn"
-						>
-							👪 Parent
-						</button>
-						<button
-							onClick={() => confirmRole("caregiver")}
-							className="submit-btn"
-							style={{ background: "var(--cream2)", color: "var(--text)" }}
-						>
-							🍼 Caregiver
-						</button>
-						<button onClick={cancelRoleSelection} className="cancel-btn">
-							Cancel
-						</button>
+				<div style={{ background: "var(--white)", padding: "24px", borderRadius: "var(--r)", border: "1px solid var(--border)", marginTop: "40px" }}>
+					<h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, textAlign: "center" }}>Choose your role</h2>
+					<div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: 24 }}>
+						<button onClick={() => confirmRole("parent")} className="submit-btn">👨‍🍼 Parent</button>
+						<button onClick={() => confirmRole("caregiver")} className="submit-btn" style={{ background: "var(--cream2)", color: "var(--text)" }}>👩‍🍼 Caregiver</button>
+						<button onClick={cancelRoleSelection} className="cancel-btn">Cancel</button>
 					</div>
 				</div>
 			</div>
@@ -86,7 +59,6 @@ export default function OnboardingFlow({ step }) {
 					<div className="logo" style={{ fontSize: 30 }}>Alaiya 🌸</div>
 					<button onClick={logout} className="cancel-btn" style={{ width: "auto", padding: "6px 16px" }}>Sign Out</button>
 				</div>
-				
 				<div style={{ display: "flex", background: "var(--cream2)", borderRadius: "var(--r)", padding: 4, marginBottom: 20 }}>
 					{["join", "create"].map((mode) => (
 						<button key={mode} onClick={() => { setFamilyMode(mode); setJoinError(""); setIsScanning(false); }} style={{ flex: 1, padding: "10px", border: "none", borderRadius: "var(--r2)", fontFamily: "inherit", fontSize: 14, fontWeight: 800, cursor: "pointer", transition: "all 0.15s", background: familyMode === mode ? "var(--white)" : "transparent", color: familyMode === mode ? "var(--rose-dark)" : "var(--text3)", boxShadow: familyMode === mode ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
@@ -94,51 +66,32 @@ export default function OnboardingFlow({ step }) {
 						</button>
 					))}
 				</div>
-
-				<div style={{ background: "var(--white)", padding: "24px", borderRadius: "var(--r)", boxShadow: "0 8px 32px rgba(0,0,0,0.04)" }}>
+				<div style={{ background: "var(--white)", padding: "24px", borderRadius: "var(--r)" }}>
 					{familyMode === "join" ? (
-						<>
-							{!isScanning ? (
-								<>
-									<input type="text" placeholder="8-Digit Code" value={joinCode} onChange={(e) => { setJoinCode(e.target.value); setJoinError(""); }} className="form-input" style={{ marginBottom: 16, textTransform: "uppercase", textAlign: "center", letterSpacing: 2, fontSize: 20 }} maxLength={8} />
-									
-									{joinError && <p style={{ color: "var(--rose-dark)", fontSize: 13, fontWeight: 700, marginBottom: 12, textAlign: "center" }}>{joinError}</p>}
-									
-									<button onClick={async () => { setJoining(true); const err = await joinFamily(joinCode); if (err) setJoinError(err); setJoining(false); }} className="submit-btn" disabled={joining || joinCode.length < 8} style={{ opacity: joinCode.length < 8 ? 0.5 : 1, marginBottom: 12 }}>
-										{joining ? "Joining..." : "Continue"}
-									</button>
-
-									<div style={{ textAlign: "center", color: "var(--text3)", fontSize: 13, fontWeight: 700, margin: "16px 0" }}>OR</div>
-
-									<button onClick={() => setIsScanning(true)} style={{ width: "100%", background: "var(--cream2)", color: "var(--text)", border: "none", padding: "16px", borderRadius: "var(--r2)", fontWeight: 800, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-										📷 Scan QR Code
-									</button>
-								</>
-							) : (
-								<div className="fade-in" style={{ textAlign: "center" }}>
-									<h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 16 }}>Position QR Code in frame</h3>
-									<div style={{ borderRadius: "16px", overflow: "hidden", marginBottom: 16 }}>
-										<Scanner 
-											onResult={async (text) => {
-												setIsScanning(false);
-												setJoinCode(text);
-												setJoining(true); 
-												const err = await joinFamily(text); 
-												if (err) setJoinError(err); 
-												setJoining(false);
-											}} 
-											onError={(error) => console.log(error?.message)} 
-										/>
-									</div>
-									<button onClick={() => setIsScanning(false)} className="cancel-btn">
-										Cancel Scanning
-									</button>
+						isScanning ? (
+							<div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+								<div style={{ borderRadius: "var(--r2)", overflow: "hidden" }}>
+									<Scanner onScan={handleScan} onError={(e) => setJoinError("Camera error")} />
 								</div>
-							)}
-						</>
+								{joinError && <p style={{ color: "var(--rose-dark)", fontSize: 13, fontWeight: 700, textAlign: "center" }}>{joinError}</p>}
+								<button onClick={() => setIsScanning(false)} className="cancel-btn">Cancel Scan</button>
+							</div>
+						) : (
+							<>
+								<input type="text" placeholder="8-Digit Code" value={joinCode} onChange={(e) => { setJoinCode(e.target.value); setJoinError(""); }} className="form-input" style={{ marginBottom: 16, textTransform: "uppercase", textAlign: "center", letterSpacing: 2 }} maxLength={8} />
+								{joinError && <p style={{ color: "var(--rose-dark)", fontSize: 13, fontWeight: 700, marginBottom: 12, textAlign: "center" }}>{joinError}</p>}
+								<button onClick={async () => { setJoining(true); const err = await joinFamily(joinCode); if (err) setJoinError(err); setJoining(false); }} className="submit-btn" disabled={joining || joinCode.length < 8} style={{ opacity: joinCode.length < 8 ? 0.5 : 1 }}>
+									{joining ? "Joining..." : "Continue"}
+								</button>
+								<div style={{ textAlign: "center", margin: "16px 0", color: "var(--text3)", fontWeight: 800 }}>OR</div>
+								<button onClick={() => setIsScanning(true)} className="submit-btn" style={{ background: "var(--cream2)", color: "var(--text)" }}>
+									📷 Scan QR Code
+								</button>
+							</>
+						)
 					) : (
 						<>
-							<input type="text" placeholder="Family Name (e.g. The Smiths)" value={familyName} onChange={(e) => setFamilyName(e.target.value)} className="form-input" style={{ marginBottom: 16 }} />
+							<input type="text" placeholder="Family Name" value={familyName} onChange={(e) => setFamilyName(e.target.value)} className="form-input" style={{ marginBottom: 16 }} />
 							<button onClick={() => createFamily(familyName)} className="submit-btn" disabled={!familyName.trim()} style={{ opacity: !familyName.trim() ? 0.5 : 1 }}>Create Family</button>
 						</>
 					)}
@@ -151,7 +104,7 @@ export default function OnboardingFlow({ step }) {
 		return (
 			<div className="app" style={{ minHeight: "100vh", padding: "24px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
 				<div style={{ background: "var(--white)", padding: "24px", borderRadius: "var(--r)", boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
-					<div style={{ fontSize: 36, textAlign: "center", marginBottom: 8 }}>🍼</div>
+					<div style={{ fontSize: 36, textAlign: "center", marginBottom: 8 }}>👶</div>
 					<h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 20, textAlign: "center" }}>Add Your Baby</h2>
 					
 					<div className="type-btns" style={{ marginBottom: 16 }}>

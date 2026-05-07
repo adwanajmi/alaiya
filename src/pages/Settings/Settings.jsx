@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useApp } from "../../contexts/AppContext";
-import QRCode from "react-qr-code";
 
 export default function Settings() {
 	const { user, family, familyMembers, babies, addBaby, updateBaby, deleteBaby, removeMember, logout } = useApp();
 
-	// Controls which baby is currently being edited. 'new' means adding a baby.
 	const [editingBabyId, setEditingBabyId] = useState(null); 
+	const [showQR, setShowQR] = useState(false);
 	
 	const [form, setForm] = useState({ name: "", dob: "", weight: "", height: "", gender: "girl" });
 
@@ -50,11 +49,6 @@ export default function Settings() {
 		setEditingBabyId(null);
 	};
 
-	const copyInvite = () => {
-		navigator.clipboard.writeText(`Join my family on Alaiya! Code: ${family?.joinCode}`);
-		alert("Invite copied to clipboard!");
-	};
-
 	const handleDeleteBaby = async (babyId, babyName) => {
 		if (window.confirm(`Are you absolutely sure you want to remove ${babyName}'s profile? This cannot be undone.`)) {
 			await deleteBaby(babyId);
@@ -62,19 +56,15 @@ export default function Settings() {
 		}
 	};
 
+	const handleCopyCode = () => {
+		navigator.clipboard.writeText(family?.joinCode);
+		alert("Invite code copied!");
+	};
+
 	return (
 		<div className="fade-in">
-			{/* Family Details */}
-			<div className="section-title">Family Details</div>
-			<div style={{ background: "var(--white)", borderRadius: "var(--r)", padding: 20, marginBottom: 24, textAlign: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.03)" }}>
-				<h3 style={{ marginBottom: 8, fontSize: 18, fontWeight: 800 }}>{family?.name}</h3>
-				<p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16, fontWeight: 600 }}>Share this code to invite members:</p>
-				<div style={{ fontSize: 24, letterSpacing: 4, fontWeight: 900, color: "var(--rose-dark)", background: "var(--peach)", padding: "12px", borderRadius: "12px" }}>
-					{family?.joinCode}
-				</div>
-			</div>
+		
 
-			{/* Children Profiles (Multi-Baby Support) */}
 			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
 				<div className="section-title" style={{ marginBottom: 0 }}>Children Profiles</div>
 				{!editingBabyId && (
@@ -177,7 +167,28 @@ export default function Settings() {
 				))}
 			</div>
 
-			{/* Family Members */}
+				<div className="section-title">Family Details</div>
+			<div style={{ background: "var(--white)", borderRadius: "var(--r)", padding: 20, marginBottom: 24, textAlign: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.03)" }}>
+				<h3 style={{ marginBottom: 8, fontSize: 18, fontWeight: 800 }}>{family?.name}</h3>
+				<p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16, fontWeight: 600 }}>Share this code to invite members:</p>
+				<div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginBottom: 16 }}>
+					<div style={{ fontSize: 24, letterSpacing: 4, fontWeight: 900, color: "var(--rose-dark)", background: "var(--peach)", padding: "12px", borderRadius: "12px", flex: 1 }}>
+						{family?.joinCode}
+					</div>
+					<button onClick={handleCopyCode} style={{ background: "var(--cream2)", border: "none", padding: "16px", borderRadius: "12px", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
+						📋
+					</button>
+				</div>
+				<button onClick={() => setShowQR(!showQR)} className="submit-btn" style={{ background: "var(--cream2)", color: "var(--text)", padding: "12px" }}>
+					{showQR ? "Hide QR Code" : "Show QR Code"}
+				</button>
+				{showQR && family?.joinCode && (
+					<div className="fade-in" style={{ marginTop: 20, display: "flex", justifyContent: "center", padding: 20, background: "var(--white)", border: "2px solid var(--cream2)", borderRadius: "var(--r)" }}>
+						<img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${family.joinCode}`} alt="QR Code" style={{ width: 160, height: 160 }} />
+					</div>
+				)}
+			</div>
+
 			<div className="section-title">Family Members</div>
 			<div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
 				{familyMembers.map((member) => {

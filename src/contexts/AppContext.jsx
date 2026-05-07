@@ -11,6 +11,8 @@ import {
 	updateDoc,
 	where,
 	deleteDoc,
+	orderBy,
+	limit
 } from "firebase/firestore";
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db, googleProvider } from "../services/firebase";
@@ -26,14 +28,12 @@ export const AppProvider = ({ children }) => {
 	const [familyMembers, setFamilyMembers] = useState([]);
 	const [babies, setBabies] = useState([]);
 	const [activeBaby, setActiveBaby] = useState(null);
-	
 	const [logs, setLogs] = useState([]);
-	const [growthLogs, setGrowthLogs] = useState([]); 
-	
+	const [growthLogs, setGrowthLogs] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [pendingFamilyId, setPendingFamilyId] = useState(null);
-	
 	const [modal, setModal] = useState({ isOpen: false, type: null });
+
 	const openModal = (type) => setModal({ isOpen: true, type });
 	const closeModal = () => setModal({ isOpen: false, type: null });
 
@@ -79,32 +79,31 @@ export const AppProvider = ({ children }) => {
 			doc(db, "families", user.currentFamilyId),
 			(d) => {
 				if (d.exists()) setFamily({ id: d.id, ...d.data() });
-			},
+			}
 		);
 
 		const unsubMembers = onSnapshot(
 			query(
 				collection(db, "family_members"),
-				where("familyId", "==", user.currentFamilyId),
+				where("familyId", "==", user.currentFamilyId)
 			),
 			(s) => {
 				setFamilyMembers(s.docs.map((d) => ({ id: d.id, ...d.data() })));
-			},
+			}
 		);
 
 		const unsubBabies = onSnapshot(
 			query(
 				collection(db, "babies"),
-				where("familyId", "==", user.currentFamilyId),
+				where("familyId", "==", user.currentFamilyId)
 			),
 			(s) => {
 				const b = s.docs.map((d) => ({ id: d.id, ...d.data() }));
 				setBabies(b);
-				// If babies exist and no active baby is set, or the active baby was deleted, default to the first one
 				if (b.length > 0 && (!activeBaby || !b.find(x => x.id === activeBaby.id))) {
 					setActiveBaby(b[0]);
 				}
-			},
+			}
 		);
 
 		return () => {
@@ -122,6 +121,8 @@ export const AppProvider = ({ children }) => {
 				collection(db, "logs"),
 				where("familyId", "==", user.currentFamilyId),
 				where("babyId", "==", activeBaby.id),
+				orderBy("timestamp", "desc"),
+				limit(50)
 			),
 			(s) => {
 				setLogs(
@@ -129,10 +130,10 @@ export const AppProvider = ({ children }) => {
 						.map((d) => ({ id: d.id, ...d.data() }))
 						.sort(
 							(a, b) =>
-								(b.timestamp || b.time || 0) - (a.timestamp || a.time || 0),
-						),
+								(b.timestamp || b.time || 0) - (a.timestamp || a.time || 0)
+						)
 				);
-			},
+			}
 		);
 
 		const unsubGrowth = onSnapshot(
@@ -188,7 +189,7 @@ export const AppProvider = ({ children }) => {
 	const joinFamily = async (code) => {
 		const q = query(
 			collection(db, "families"),
-			where("joinCode", "==", code.trim().toUpperCase()),
+			where("joinCode", "==", code.trim().toUpperCase())
 		);
 		const snap = await getDocs(q);
 		if (snap.empty) return "Family not found. Check the code and try again.";
@@ -242,7 +243,6 @@ export const AppProvider = ({ children }) => {
 			...babyData,
 			familyId: user.currentFamilyId,
 		});
-		// Automatically switch to the newly created baby
 		setActiveBaby({
 			id: docRef.id,
 			...babyData,
@@ -291,7 +291,7 @@ export const AppProvider = ({ children }) => {
 				babies,
 				activeBaby,
 				logs,
-				growthLogs, 
+				growthLogs,
 				loading,
 				pendingFamilyId,
 				login,
@@ -306,7 +306,7 @@ export const AppProvider = ({ children }) => {
 				deleteBaby,
 				switchBaby,
 				addLog,
-				addGrowthLog, 
+				addGrowthLog,
 				modal,
 				openModal,
 				closeModal
