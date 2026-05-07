@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useApp } from "../../contexts/AppContext";
+import QRCode from "react-qr-code";
 
 export default function Settings() {
 	const { user, family, familyMembers, babies, addBaby, updateBaby, deleteBaby, removeMember, logout } = useApp();
@@ -47,6 +48,11 @@ export default function Settings() {
 			await updateBaby(editingBabyId, form);
 		}
 		setEditingBabyId(null);
+	};
+
+	const copyInvite = () => {
+		navigator.clipboard.writeText(`Join my family on Alaiya! Code: ${family?.joinCode}`);
+		alert("Invite copied to clipboard!");
 	};
 
 	const handleDeleteBaby = async (babyId, babyName) => {
