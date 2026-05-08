@@ -1,16 +1,51 @@
-# React + Vite
+# Bably 🌸
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A beautiful, real-time Progressive Web App (PWA) designed to help parents, caregivers, and families collaboratively track baby activities. From milk intake and breast pumping to sleep schedules and growth percentiles, Bably keeps everyone in sync without the clutter.
 
-Currently, two official plugins are available:
+![Bably Dashboard Placeholder](https://via.placeholder.com/800x450.png?text=Bably+Dashboard+Preview)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ✨ Features
+* **Real-Time Synchronization:** Seamlessly syncs logs across all family members' devices instantly.
+* **Comprehensive Tracking:** Log bottle feeding, direct breastfeeding, breast pumping, sleep, diapers, baths, and medication.
+* **Smart Insights:** End-of-day summaries and intelligent timeline filtering.
+* **Role-Based Access:** Safe collaboration with distinct "Parent" (full access/admin) and "Caregiver" (restricted view/logging) roles.
+* **Multi-Child Support:** Easily switch between profiles for families with multiple babies.
+* **Growth Tracking:** Chart weight, height, and head circumference over time.
+* **QR Code Joining:** Quickly invite grandparents or nannies to the family via a secure QR code scanner.
 
-## React Compiler
+## 🛠 Tech Stack
+* **Frontend:** React 19, Vite, React Router DOM v7
+* **Backend/Database:** Firebase (Auth, Firestore, Storage)
+* **Styling/UI:** TailwindCSS (v4), Lucide React
+* **Charts/Analytics:** Recharts
+* **Utilities:** `@yudiel/react-qr-scanner` (QR scanning), `browser-image-compression` (Storage optimization)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 Getting Started
 
-## Expanding the ESLint configuration
+### Prerequisites
+* Node.js (v18 or higher)
+* A Firebase Project (Spark Plan is sufficient for development)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 1. Clone & Install
+\`\`\`bash
+git clone https://github.com/your-username/bably.git
+cd bably
+npm install
+\`\`\`
+
+### 2. Environment Setup
+Create a `.env` file in the root directory and add your Firebase configuration:
+\`\`\`env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+\`\`\`
+
+### 3. Run Locally
+\`\`\`bash
+npm run dev
+\`\`\`
+Visit `http://localhost:5173` to view the app.
