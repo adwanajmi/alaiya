@@ -1,12 +1,16 @@
+import { useState } from "react";
 import Loading from "../../components/ui/Loading";
 import { ACTIVITY_CONFIG } from "../../constants/activities";
 import { useApp } from "../../contexts/AppContext";
 import { formatTime } from "../../utils/dateUtils";
 
 export default function Timeline() {
-	const { logs, activeBaby, user, familyMembers, openModal, deleteLog } = useApp();
+	const { logs, activeBaby, user, familyMembers, openModal, deleteLog } =
+		useApp();
+	const [filter, setFilter] = useState("today");
 
-	const myRole = familyMembers.find(m => m.userId === user?.uid)?.role || "caregiver";
+	const myRole =
+		familyMembers.find((m) => m.userId === user?.uid)?.role || "caregiver";
 	const isSuperAdmin = user?.platformRole === "SUPER_ADMIN";
 
 	const handleDelete = async (logId) => {
@@ -19,6 +23,29 @@ export default function Timeline() {
 		if (isSuperAdmin || myRole === "parent") return true;
 		return log.userId === user?.uid;
 	};
+
+	const getFilteredLogs = () => {
+		if (!logs) return [];
+		const now = new Date();
+		const startOfToday = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate(),
+		).getTime();
+		const startOfYesterday = startOfToday - 86400000;
+		const startOf7Days = startOfToday - 86400000 * 7;
+
+		return logs.filter((log) => {
+			const logTime = log.timestamp || log.time || Date.now();
+			if (filter === "today") return logTime >= startOfToday;
+			if (filter === "yesterday")
+				return logTime >= startOfYesterday && logTime < startOfToday;
+			if (filter === "7days") return logTime >= startOf7Days;
+			return true;
+		});
+	};
+
+	const filteredLogs = getFilteredLogs();
 
 	const TimelineCard = ({ log }) => {
 		const config = ACTIVITY_CONFIG[log.type] || ACTIVITY_CONFIG.note;
@@ -33,11 +60,35 @@ export default function Timeline() {
 								(log.feedType === "direct" ? "(Direct)" : "(Bottle)")}
 						</span>
 						<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-							<span className="timeline-time">{formatTime(log.timestamp || log.time || Date.now())}</span>
+							<span className="timeline-time">
+								{formatTime(log.timestamp || log.time || Date.now())}
+							</span>
 							{canEditOrDelete(log) && (
 								<div style={{ display: "flex", gap: "4px" }}>
-									<button onClick={() => openModal(log.type, log)} style={{ background: "none", border: "none", fontSize: "14px", cursor: "pointer", opacity: 0.6 }}>✏️</button>
-									<button onClick={() => handleDelete(log.id)} style={{ background: "none", border: "none", fontSize: "14px", cursor: "pointer", opacity: 0.6 }}>🗑️</button>
+									<button
+										onClick={() => openModal(log.type, log)}
+										style={{
+											background: "none",
+											border: "none",
+											fontSize: "14px",
+											cursor: "pointer",
+											opacity: 0.6,
+										}}
+									>
+										✏️
+									</button>
+									<button
+										onClick={() => handleDelete(log.id)}
+										style={{
+											background: "none",
+											border: "none",
+											fontSize: "14px",
+											cursor: "pointer",
+											opacity: 0.6,
+										}}
+									>
+										🗑️
+									</button>
 								</div>
 							)}
 						</div>
@@ -68,7 +119,44 @@ export default function Timeline() {
 
 	return (
 		<div className="fade-in">
-			<div className="section-title">Full History</div>
+			<div className="section-title">Timeline</div>
+
+			<div
+				style={{
+					display: "flex",
+					gap: "8px",
+					overflowX: "auto",
+					paddingBottom: "16px",
+					scrollbarWidth: "none",
+				}}
+			>
+				{[
+					{ id: "today", label: "Today" },
+					{ id: "yesterday", label: "Yesterday" },
+					{ id: "7days", label: "Last 7 Days" },
+					{ id: "all", label: "All History" },
+				].map((f) => (
+					<button
+						key={f.id}
+						onClick={() => setFilter(f.id)}
+						style={{
+							padding: "8px 16px",
+							borderRadius: "20px",
+							border: "none",
+							background:
+								filter === f.id ? "var(--rose-dark)" : "var(--cream2)",
+							color: filter === f.id ? "white" : "var(--text2)",
+							fontWeight: 800,
+							fontSize: "13px",
+							whiteSpace: "nowrap",
+							cursor: "pointer",
+						}}
+					>
+						{f.label}
+					</button>
+				))}
+			</div>
+
 			{!logs ? (
 				<Loading
 					inline
@@ -76,12 +164,19 @@ export default function Timeline() {
 				/>
 			) : (
 				<div className="timeline-cards">
-					{logs.map((log) => (
+					{filteredLogs.map((log) => (
 						<TimelineCard key={log.id} log={log} />
 					))}
-					{logs.length === 0 && (
-						<div style={{ textAlign: "center", padding: "40px", color: "var(--text3)", fontWeight: 700 }}>
-							No activities recorded yet.
+					{filteredLogs.length === 0 && (
+						<div
+							style={{
+								textAlign: "center",
+								padding: "40px",
+								color: "var(--text3)",
+								fontWeight: 700,
+							}}
+						>
+							No activities found.
 						</div>
 					)}
 				</div>

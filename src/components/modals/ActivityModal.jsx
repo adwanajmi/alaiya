@@ -1,9 +1,21 @@
-import { useState, useEffect } from "react";
-import { ACTIVITY_CONFIG, ENCOURAGEMENT_MESSAGES } from "../../constants/activities";
+import { useEffect, useState } from "react";
+import {
+	ACTIVITY_CONFIG,
+	ENCOURAGEMENT_MESSAGES,
+} from "../../constants/activities";
 import { useApp } from "../../contexts/AppContext";
 
 export default function ActivityModal() {
-	const { modal, closeModal, addLog, updateLog, openModal, activeBaby, user, familyMembers, showEncouragement } = useApp();
+	const {
+		modal,
+		closeModal,
+		addLog,
+		updateLog,
+		openModal,
+		activeBaby,
+		userRole,
+		showEncouragement,
+	} = useApp();
 	const [isSaving, setIsSaving] = useState(false);
 	const [formState, setFormState] = useState({
 		amount: 120,
@@ -21,10 +33,11 @@ export default function ActivityModal() {
 
 	useEffect(() => {
 		if (modal.isOpen && modal.type !== "menu") {
-			const targetDate = modal.payload ? new Date(modal.payload.timestamp || Date.now()) : new Date();
+			const targetDate = modal.payload
+				? new Date(modal.payload.timestamp || Date.now())
+				: new Date();
 			const offset = targetDate.getTimezoneOffset() * 60000;
 			const local = new Date(targetDate.getTime() - offset);
-			
 			if (modal.payload) {
 				setFormState({
 					amount: modal.payload.amount || 120,
@@ -62,16 +75,17 @@ export default function ActivityModal() {
 	const handleModalSubmit = async () => {
 		if (!activeBaby) return;
 		setIsSaving(true);
-		
 		let customTimestamp = Date.now();
 		if (formState.logDate && formState.logTime) {
 			const [year, month, day] = formState.logDate.split("-");
 			const [hour, minute] = formState.logTime.split(":");
 			customTimestamp = new Date(year, month - 1, day, hour, minute).getTime();
 		}
-
-		const logData = { type: modal.type, text: formState.note, timestamp: customTimestamp };
-		
+		const logData = {
+			type: modal.type,
+			text: formState.note,
+			timestamp: customTimestamp,
+		};
 		if (modal.type === "milk") {
 			logData.feedType = formState.feedType;
 			if (formState.feedType === "bottle") {
@@ -97,11 +111,12 @@ export default function ActivityModal() {
 				await updateLog(modal.payload.id, logData);
 			} else {
 				await addLog(logData);
-				const myRole = familyMembers.find(m => m.userId === user?.uid)?.role || "caregiver";
 				let pool = [];
-				if (myRole === "parent") {
-					if (modal.type === "milk" && formState.feedType === "direct") pool = ENCOURAGEMENT_MESSAGES.parent.direct;
-					else if (modal.type === "pump") pool = ENCOURAGEMENT_MESSAGES.parent.pump;
+				if (userRole === "parent") {
+					if (modal.type === "milk" && formState.feedType === "direct")
+						pool = ENCOURAGEMENT_MESSAGES.parent.direct;
+					else if (modal.type === "pump")
+						pool = ENCOURAGEMENT_MESSAGES.parent.pump;
 					else pool = ENCOURAGEMENT_MESSAGES.parent.general;
 				} else {
 					pool = ENCOURAGEMENT_MESSAGES.caregiver;
@@ -109,8 +124,6 @@ export default function ActivityModal() {
 				showEncouragement(pool[Math.floor(Math.random() * pool.length)]);
 			}
 			closeModal();
-		} catch (error) {
-			console.error("Save Error:", error);
 		} finally {
 			setIsSaving(false);
 		}
@@ -119,11 +132,17 @@ export default function ActivityModal() {
 	const adjAmount = (delta) => {
 		const step = formState.unit === "oz" ? 0.5 : 10;
 		const min = formState.unit === "oz" ? 0.5 : 10;
-		setFormState((prev) => ({ ...prev, amount: Math.max(min, prev.amount + delta * step) }));
+		setFormState((prev) => ({
+			...prev,
+			amount: Math.max(min, prev.amount + delta * step),
+		}));
 	};
 
 	const adjDuration = (delta) =>
-		setFormState((prev) => ({ ...prev, duration: Math.max(1, prev.duration + delta * 5) }));
+		setFormState((prev) => ({
+			...prev,
+			duration: Math.max(1, prev.duration + delta * 5),
+		}));
 
 	const setUnit = (unit) => {
 		if (formState.unit === unit) return;
@@ -136,7 +155,12 @@ export default function ActivityModal() {
 	};
 
 	return (
-		<div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !isSaving) closeModal(); }}>
+		<div
+			className="modal-overlay"
+			onMouseDown={(e) => {
+				if (e.target === e.currentTarget && !isSaving) closeModal();
+			}}
+		>
 			<div className="modal">
 				<div className="modal-handle"></div>
 
@@ -144,12 +168,26 @@ export default function ActivityModal() {
 					<>
 						<div className="modal-title">Log Activity</div>
 						<div className="quick-btns-grid">
-							{Object.entries(ACTIVITY_CONFIG).map(([type, config]) => (
-								<button key={type} className="grid-btn" onClick={() => openModal(type)}>
-									<div className={`grid-icon ${config.color}`}>{config.emoji}</div>
-									<div className="grid-label">{config.title}</div>
-								</button>
-							))}
+							{Object.entries(ACTIVITY_CONFIG).map(([type, config]) => {
+								if (
+									type === "pump" &&
+									userRole !== "parent" &&
+									userRole !== "SUPER_ADMIN"
+								)
+									return null;
+								return (
+									<button
+										key={type}
+										className="grid-btn"
+										onClick={() => openModal(type)}
+									>
+										<div className={`grid-icon ${config.color}`}>
+											{config.emoji}
+										</div>
+										<div className="grid-label">{config.title}</div>
+									</button>
+								);
+							})}
 						</div>
 					</>
 				)}
@@ -161,7 +199,14 @@ export default function ActivityModal() {
 							<label className="form-label">Side</label>
 							<div className="type-btns">
 								{["left", "both", "right"].map((side) => (
-									<button key={side} onClick={() => setFormState({ ...formState, breastSide: side })} className={`type-btn ${formState.breastSide === side ? "selected" : ""}`} style={{ textTransform: "capitalize" }}>
+									<button
+										key={side}
+										onClick={() =>
+											setFormState({ ...formState, breastSide: side })
+										}
+										className={`type-btn ${formState.breastSide === side ? "selected" : ""}`}
+										style={{ textTransform: "capitalize" }}
+									>
 										{side}
 									</button>
 								))}
@@ -170,17 +215,31 @@ export default function ActivityModal() {
 						<div className="form-group">
 							<label className="form-label">Unit</label>
 							<div className="type-btns">
-								<button className={`type-btn ${formState.unit === "ml" ? "selected" : ""}`} onClick={() => setUnit("ml")}>ml</button>
-								<button className={`type-btn ${formState.unit === "oz" ? "selected" : ""}`} onClick={() => setUnit("oz")}>oz</button>
+								<button
+									className={`type-btn ${formState.unit === "ml" ? "selected" : ""}`}
+									onClick={() => setUnit("ml")}
+								>
+									ml
+								</button>
+								<button
+									className={`type-btn ${formState.unit === "oz" ? "selected" : ""}`}
+									onClick={() => setUnit("oz")}
+								>
+									oz
+								</button>
 							</div>
 						</div>
 						<div className="form-group">
 							<label className="form-label">Total Amount</label>
 							<div className="amount-row">
-								<button className="amount-btn" onClick={() => adjAmount(-1)}>−</button>
+								<button className="amount-btn" onClick={() => adjAmount(-1)}>
+									−
+								</button>
 								<span className="amount-val">{formState.amount}</span>
 								<span className="amount-unit">{formState.unit}</span>
-								<button className="amount-btn" onClick={() => adjAmount(1)}>+</button>
+								<button className="amount-btn" onClick={() => adjAmount(1)}>
+									+
+								</button>
 							</div>
 						</div>
 					</>
@@ -192,8 +251,22 @@ export default function ActivityModal() {
 						<div className="form-group">
 							<label className="form-label">Method</label>
 							<div className="type-btns">
-								<button className={`type-btn ${formState.feedType === "direct" ? "selected" : ""}`} onClick={() => setFormState({ ...formState, feedType: "direct" })}>🤱 Direct</button>
-								<button className={`type-btn ${formState.feedType === "bottle" ? "selected" : ""}`} onClick={() => setFormState({ ...formState, feedType: "bottle" })}>🍼 Bottle</button>
+								<button
+									className={`type-btn ${formState.feedType === "direct" ? "selected" : ""}`}
+									onClick={() =>
+										setFormState({ ...formState, feedType: "direct" })
+									}
+								>
+									🤱 Direct
+								</button>
+								<button
+									className={`type-btn ${formState.feedType === "bottle" ? "selected" : ""}`}
+									onClick={() =>
+										setFormState({ ...formState, feedType: "bottle" })
+									}
+								>
+									🍼 Bottle
+								</button>
 							</div>
 						</div>
 						{formState.feedType === "direct" ? (
@@ -202,7 +275,14 @@ export default function ActivityModal() {
 									<label className="form-label">Side</label>
 									<div className="type-btns">
 										{["left", "right"].map((side) => (
-											<button key={side} onClick={() => setFormState({ ...formState, breastSide: side })} className={`type-btn ${formState.breastSide === side ? "selected" : ""}`} style={{ textTransform: "capitalize" }}>
+											<button
+												key={side}
+												onClick={() =>
+													setFormState({ ...formState, breastSide: side })
+												}
+												className={`type-btn ${formState.breastSide === side ? "selected" : ""}`}
+												style={{ textTransform: "capitalize" }}
+											>
 												{side}
 											</button>
 										))}
@@ -211,10 +291,20 @@ export default function ActivityModal() {
 								<div className="form-group">
 									<label className="form-label">Duration</label>
 									<div className="amount-row">
-										<button className="amount-btn" onClick={() => adjDuration(-1)}>−</button>
+										<button
+											className="amount-btn"
+											onClick={() => adjDuration(-1)}
+										>
+											−
+										</button>
 										<span className="amount-val">{formState.duration}</span>
 										<span className="amount-unit">mins</span>
-										<button className="amount-btn" onClick={() => adjDuration(1)}>+</button>
+										<button
+											className="amount-btn"
+											onClick={() => adjDuration(1)}
+										>
+											+
+										</button>
 									</div>
 								</div>
 							</>
@@ -223,23 +313,101 @@ export default function ActivityModal() {
 								<div className="form-group">
 									<label className="form-label">Milk Type</label>
 									<div className="type-btns">
-										<button className={`type-btn ${formState.bottleType === "breastmilk" ? "selected" : ""}`} onClick={() => setFormState({ ...formState, bottleType: "breastmilk" })}>Breast Milk</button>
-										<button className={`type-btn ${formState.bottleType === "formula" ? "selected" : ""}`} onClick={() => setFormState({ ...formState, bottleType: "formula" })}>Formula</button>
+										<button
+											className={`type-btn ${formState.bottleType === "breastmilk" ? "selected" : ""}`}
+											onClick={() =>
+												setFormState({ ...formState, bottleType: "breastmilk" })
+											}
+										>
+											Breast Milk
+										</button>
+										<button
+											className={`type-btn ${formState.bottleType === "formula" ? "selected" : ""}`}
+											onClick={() =>
+												setFormState({ ...formState, bottleType: "formula" })
+											}
+										>
+											Formula
+										</button>
 									</div>
 								</div>
 								<div className="form-group">
-									<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-										<label className="form-label" style={{ marginBottom: 0 }}>Amount</label>
-										<div style={{ display: "flex", gap: "4px", background: "var(--cream2)", padding: "2px", borderRadius: "8px" }}>
-											<button style={{ padding: "4px 12px", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, background: formState.unit === "ml" ? "var(--white)" : "transparent", color: formState.unit === "ml" ? "var(--rose-dark)" : "var(--text3)", boxShadow: formState.unit === "ml" ? "0 2px 4px rgba(0,0,0,0.05)" : "none", cursor: "pointer" }} onClick={() => setUnit("ml")}>ml</button>
-											<button style={{ padding: "4px 12px", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, background: formState.unit === "oz" ? "var(--white)" : "transparent", color: formState.unit === "oz" ? "var(--rose-dark)" : "var(--text3)", boxShadow: formState.unit === "oz" ? "0 2px 4px rgba(0,0,0,0.05)" : "none", cursor: "pointer" }} onClick={() => setUnit("oz")}>oz</button>
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											alignItems: "center",
+											marginBottom: "8px",
+										}}
+									>
+										<label className="form-label" style={{ marginBottom: 0 }}>
+											Amount
+										</label>
+										<div
+											style={{
+												display: "flex",
+												gap: "4px",
+												background: "var(--cream2)",
+												padding: "2px",
+												borderRadius: "8px",
+											}}
+										>
+											<button
+												style={{
+													padding: "4px 12px",
+													border: "none",
+													borderRadius: "6px",
+													fontSize: "12px",
+													fontWeight: 700,
+													background:
+														formState.unit === "ml"
+															? "var(--white)"
+															: "transparent",
+													color:
+														formState.unit === "ml"
+															? "var(--rose-dark)"
+															: "var(--text3)",
+													cursor: "pointer",
+												}}
+												onClick={() => setUnit("ml")}
+											>
+												ml
+											</button>
+											<button
+												style={{
+													padding: "4px 12px",
+													border: "none",
+													borderRadius: "6px",
+													fontSize: "12px",
+													fontWeight: 700,
+													background:
+														formState.unit === "oz"
+															? "var(--white)"
+															: "transparent",
+													color:
+														formState.unit === "oz"
+															? "var(--rose-dark)"
+															: "var(--text3)",
+													cursor: "pointer",
+												}}
+												onClick={() => setUnit("oz")}
+											>
+												oz
+											</button>
 										</div>
 									</div>
 									<div className="amount-row">
-										<button className="amount-btn" onClick={() => adjAmount(-1)}>−</button>
+										<button
+											className="amount-btn"
+											onClick={() => adjAmount(-1)}
+										>
+											−
+										</button>
 										<span className="amount-val">{formState.amount}</span>
 										<span className="amount-unit">{formState.unit}</span>
-										<button className="amount-btn" onClick={() => adjAmount(1)}>+</button>
+										<button className="amount-btn" onClick={() => adjAmount(1)}>
+											+
+										</button>
 									</div>
 								</div>
 							</>
@@ -253,8 +421,18 @@ export default function ActivityModal() {
 						<div className="form-group">
 							<label className="form-label">Type</label>
 							<div className="type-btns">
-								{[ { val: "wet", label: "💧 Wet" }, { val: "dirty", label: "💩 Dirty" }, { val: "both", label: "Both" } ].map(({ val, label }) => (
-									<button key={val} className={`type-btn ${formState.diaperType === val ? "selected" : ""}`} onClick={() => setFormState({ ...formState, diaperType: val })}>
+								{[
+									{ val: "wet", label: "💧 Wet" },
+									{ val: "dirty", label: "💩 Dirty" },
+									{ val: "both", label: "Both" },
+								].map(({ val, label }) => (
+									<button
+										key={val}
+										className={`type-btn ${formState.diaperType === val ? "selected" : ""}`}
+										onClick={() =>
+											setFormState({ ...formState, diaperType: val })
+										}
+									>
 										{label}
 									</button>
 								))}
@@ -264,7 +442,9 @@ export default function ActivityModal() {
 				)}
 
 				{(modal.type === "sleep" || modal.type === "bath") && (
-					<div className="modal-title">{modal.type === "sleep" ? "😴 Log Sleep" : "🛁 Log Bath"}</div>
+					<div className="modal-title">
+						{modal.type === "sleep" ? "😴 Log Sleep" : "🛁 Log Bath"}
+					</div>
 				)}
 
 				{modal.type === "meds" && (
@@ -272,7 +452,14 @@ export default function ActivityModal() {
 						<div className="modal-title">💊 Medication</div>
 						<div className="form-group">
 							<label className="form-label">Medication Name</label>
-							<input className="form-input" placeholder="e.g. Vitamin D drops" value={formState.name} onChange={(e) => setFormState({ ...formState, name: e.target.value })} />
+							<input
+								className="form-input"
+								placeholder="e.g. Vitamin D drops"
+								value={formState.name}
+								onChange={(e) =>
+									setFormState({ ...formState, name: e.target.value })
+								}
+							/>
 						</div>
 					</>
 				)}
@@ -282,26 +469,68 @@ export default function ActivityModal() {
 						<div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
 							<div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
 								<label className="form-label">Date</label>
-								<input type="date" value={formState.logDate} onChange={(e) => setFormState({ ...formState, logDate: e.target.value })} className="form-input" />
+								<input
+									type="date"
+									value={formState.logDate}
+									onChange={(e) =>
+										setFormState({ ...formState, logDate: e.target.value })
+									}
+									className="form-input"
+								/>
 							</div>
 							<div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
 								<label className="form-label">Time</label>
-								<input type="time" value={formState.logTime} onChange={(e) => setFormState({ ...formState, logTime: e.target.value })} className="form-input" />
+								<input
+									type="time"
+									value={formState.logTime}
+									onChange={(e) =>
+										setFormState({ ...formState, logTime: e.target.value })
+									}
+									className="form-input"
+								/>
 							</div>
 						</div>
 						<div className="form-group">
 							<label className="form-label">Notes (Optional)</label>
-							<input className="form-input" placeholder="e.g. Fussy today" value={formState.note} onChange={(e) => setFormState({ ...formState, note: e.target.value })} />
+							<input
+								className="form-input"
+								placeholder="e.g. Fussy today"
+								value={formState.note}
+								onChange={(e) =>
+									setFormState({ ...formState, note: e.target.value })
+								}
+							/>
 						</div>
-						<button className="submit-btn" onClick={handleModalSubmit} disabled={isSaving} style={{ opacity: isSaving ? 0.7 : 1 }}>
-							{isSaving ? "Saving..." : (modal.payload ? "Update Activity" : "Save Activity")}
+						<button
+							className="submit-btn"
+							onClick={handleModalSubmit}
+							disabled={isSaving}
+							style={{ opacity: isSaving ? 0.7 : 1 }}
+						>
+							{isSaving
+								? "Saving..."
+								: modal.payload
+									? "Update Activity"
+									: "Save Activity"}
 						</button>
-						<button className="cancel-btn" onClick={closeModal} disabled={isSaving}>Cancel</button>
+						<button
+							className="cancel-btn"
+							onClick={closeModal}
+							disabled={isSaving}
+						>
+							Cancel
+						</button>
 					</>
 				)}
 
 				{modal.type === "menu" && (
-					<button className="cancel-btn" onClick={closeModal} style={{ marginTop: 12 }}>Close</button>
+					<button
+						className="cancel-btn"
+						onClick={closeModal}
+						style={{ marginTop: 12 }}
+					>
+						Close
+					</button>
 				)}
 			</div>
 		</div>

@@ -1,7 +1,17 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
 
 export default function AuthPage() {
-	const { login } = useApp();
+	const { login, user } = useApp();
+	const navigate = useNavigate();
+
+	useEffect(() => {
+		if (user) {
+			// Redirect automatically if user is authenticated
+			navigate("/", { replace: true });
+		}
+	}, [user, navigate]);
 
 	return (
 		<div
@@ -16,7 +26,7 @@ export default function AuthPage() {
 			}}
 		>
 			<div className="logo" style={{ fontSize: 44, marginBottom: 32 }}>
-				bab<span>ly</span> 🌸
+				Alaiya 🌸
 			</div>
 			<p
 				style={{

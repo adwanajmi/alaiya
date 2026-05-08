@@ -2,17 +2,17 @@ import { signInWithPopup, signOut } from "firebase/auth";
 import {
 	addDoc,
 	collection,
+	deleteDoc,
 	doc,
 	getDoc,
 	getDocs,
+	limit,
 	onSnapshot,
+	orderBy,
 	query,
 	setDoc,
 	updateDoc,
 	where,
-	deleteDoc,
-	orderBy,
-	limit
 } from "firebase/firestore";
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db, googleProvider } from "../services/firebase";
@@ -32,12 +32,18 @@ export const AppProvider = ({ children }) => {
 	const [growthLogs, setGrowthLogs] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [pendingFamilyId, setPendingFamilyId] = useState(null);
-	const [modal, setModal] = useState({ isOpen: false, type: null, payload: null });
+	const [modal, setModal] = useState({
+		isOpen: false,
+		type: null,
+		payload: null,
+	});
 	const [encouragement, setEncouragement] = useState(null);
+	const [userRole, setUserRole] = useState("caregiver");
 
-	const openModal = (type, payload = null) => setModal({ isOpen: true, type, payload });
-	const closeModal = () => setModal({ isOpen: false, type: null, payload: null });
-	
+	const openModal = (type, payload = null) =>
+		setModal({ isOpen: true, type, payload });
+	const closeModal = () =>
+		setModal({ isOpen: false, type: null, payload: null });
 	const showEncouragement = (msg) => setEncouragement(msg);
 
 	useEffect(() => {
@@ -70,6 +76,7 @@ export const AppProvider = ({ children }) => {
 				setActiveBaby(null);
 				setLogs([]);
 				setGrowthLogs([]);
+				setUserRole("caregiver");
 			}
 			setLoading(false);
 		});
@@ -82,31 +89,37 @@ export const AppProvider = ({ children }) => {
 			doc(db, "families", user.currentFamilyId),
 			(d) => {
 				if (d.exists()) setFamily({ id: d.id, ...d.data() });
-			}
+			},
 		);
 
 		const unsubMembers = onSnapshot(
 			query(
 				collection(db, "family_members"),
-				where("familyId", "==", user.currentFamilyId)
+				where("familyId", "==", user.currentFamilyId),
 			),
 			(s) => {
-				setFamilyMembers(s.docs.map((d) => ({ id: d.id, ...d.data() })));
-			}
+				const members = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+				setFamilyMembers(members);
+				const myMemberDoc = members.find((m) => m.userId === user.uid);
+				if (myMemberDoc) setUserRole(myMemberDoc.role);
+			},
 		);
 
 		const unsubBabies = onSnapshot(
 			query(
 				collection(db, "babies"),
-				where("familyId", "==", user.currentFamilyId)
+				where("familyId", "==", user.currentFamilyId),
 			),
 			(s) => {
 				const b = s.docs.map((d) => ({ id: d.id, ...d.data() }));
 				setBabies(b);
-				if (b.length > 0 && (!activeBaby || !b.find(x => x.id === activeBaby.id))) {
+				if (
+					b.length > 0 &&
+					(!activeBaby || !b.find((x) => x.id === activeBaby?.id))
+				) {
 					setActiveBaby(b[0]);
 				}
-			}
+			},
 		);
 
 		return () => {
@@ -118,14 +131,14 @@ export const AppProvider = ({ children }) => {
 
 	useEffect(() => {
 		if (!user?.currentFamilyId || !activeBaby?.id) return;
-		
+
 		const unsubLogs = onSnapshot(
 			query(
 				collection(db, "logs"),
 				where("familyId", "==", user.currentFamilyId),
 				where("babyId", "==", activeBaby.id),
 				orderBy("timestamp", "desc"),
-				limit(50)
+				limit(50),
 			),
 			(s) => {
 				setLogs(
@@ -133,25 +146,25 @@ export const AppProvider = ({ children }) => {
 						.map((d) => ({ id: d.id, ...d.data() }))
 						.sort(
 							(a, b) =>
-								(b.timestamp || b.time || 0) - (a.timestamp || a.time || 0)
-						)
+								(b.timestamp || b.time || 0) - (a.timestamp || a.time || 0),
+						),
 				);
-			}
+			},
 		);
 
 		const unsubGrowth = onSnapshot(
 			query(
 				collection(db, "growth"),
 				where("familyId", "==", user.currentFamilyId),
-				where("babyId", "==", activeBaby.id)
+				where("babyId", "==", activeBaby.id),
 			),
 			(s) => {
 				setGrowthLogs(
 					s.docs
 						.map((d) => ({ id: d.id, ...d.data() }))
-						.sort((a, b) => b.timestamp - a.timestamp)
+						.sort((a, b) => b.timestamp - a.timestamp),
 				);
-			}
+			},
 		);
 
 		return () => {
@@ -170,7 +183,6 @@ export const AppProvider = ({ children }) => {
 			joinCode,
 			createdAt: Date.now(),
 		});
-
 		const memberId = `${familyRef.id}_${user.uid}`;
 		await setDoc(doc(db, "family_members", memberId), {
 			familyId: familyRef.id,
@@ -182,7 +194,6 @@ export const AppProvider = ({ children }) => {
 			status: "active",
 			joinedAt: Date.now(),
 		});
-
 		await updateDoc(doc(db, "users", user.uid), {
 			currentFamilyId: familyRef.id,
 		});
@@ -192,18 +203,16 @@ export const AppProvider = ({ children }) => {
 	const joinFamily = async (code) => {
 		const q = query(
 			collection(db, "families"),
-			where("joinCode", "==", code.trim().toUpperCase())
+			where("joinCode", "==", code.trim().toUpperCase()),
 		);
 		const snap = await getDocs(q);
-		if (snap.empty) return "Family not found. Check the code and try again.";
-
+		if (snap.empty) return "Family not found.";
 		setPendingFamilyId(snap.docs[0].id);
 		return null;
 	};
 
 	const confirmRole = async (role) => {
 		if (!pendingFamilyId) return;
-
 		const memberId = `${pendingFamilyId}_${user.uid}`;
 		await setDoc(doc(db, "family_members", memberId), {
 			familyId: pendingFamilyId,
@@ -215,7 +224,6 @@ export const AppProvider = ({ children }) => {
 			status: "active",
 			joinedAt: Date.now(),
 		});
-
 		await updateDoc(doc(db, "users", user.uid), {
 			currentFamilyId: pendingFamilyId,
 		});
@@ -226,18 +234,13 @@ export const AppProvider = ({ children }) => {
 	const cancelRoleSelection = () => setPendingFamilyId(null);
 
 	const removeMember = async (memberDocId, memberUserId) => {
-		try {
-			await deleteDoc(doc(db, "family_members", memberDocId));
-			await updateDoc(doc(db, "users", memberUserId), { currentFamilyId: null });
-			if (memberUserId === user.uid) {
-				setUser((prev) => ({ ...prev, currentFamilyId: null }));
-				setFamily(null);
-				setBabies([]);
-				setLogs([]);
-			}
-		} catch (error) {
-			console.error("Error removing member:", error);
-			alert("Failed to remove member. You might not have permission.");
+		await deleteDoc(doc(db, "family_members", memberDocId));
+		await updateDoc(doc(db, "users", memberUserId), { currentFamilyId: null });
+		if (memberUserId === user.uid) {
+			setUser((prev) => ({ ...prev, currentFamilyId: null }));
+			setFamily(null);
+			setBabies([]);
+			setLogs([]);
 		}
 	};
 
@@ -270,7 +273,6 @@ export const AppProvider = ({ children }) => {
 		const logTimestamp = logData.timestamp || Date.now();
 		const dataToSave = { ...logData };
 		delete dataToSave.timestamp;
-
 		await addDoc(collection(db, "logs"), {
 			...dataToSave,
 			familyId: user.currentFamilyId,
@@ -307,6 +309,7 @@ export const AppProvider = ({ children }) => {
 		<AppContext.Provider
 			value={{
 				user,
+				userRole,
 				family,
 				familyMembers,
 				babies,
@@ -334,7 +337,7 @@ export const AppProvider = ({ children }) => {
 				modal,
 				openModal,
 				closeModal,
-				showEncouragement
+				showEncouragement,
 			}}
 		>
 			{children}
