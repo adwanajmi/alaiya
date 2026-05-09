@@ -600,3 +600,59 @@ body {
     border-top-left-radius: 40px; /* Softer corners */
     border-top-right-radius: 40px;
 }
+
+.image-viewer-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.85);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	z-index: 99999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	cursor: zoom-out;
+}
+
+.image-viewer-close {
+	position: absolute;
+	top: 24px;
+	right: 24px;
+	background: rgba(255, 255, 255, 0.2);
+	border: none;
+	color: white;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	font-size: 20px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100000;
+}
+
+.image-viewer-img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+	border-radius: 20px;
+	box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+	animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	cursor: default;
+}
+
+@keyframes zoomIn {
+	from { transform: scale(0.95); opacity: 0; }
+	to { transform: scale(1); opacity: 1; }
+}
+
+.avatar-circle {
+	border-radius: 50%;
+	object-fit: cover;
+	aspect-ratio: 1 / 1;
+}

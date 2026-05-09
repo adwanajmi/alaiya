@@ -45,12 +45,13 @@ export const AppProvider = ({ children }) => {
 	const [encouragement, setEncouragement] = useState(null);
 	const [userRole, setUserRole] = useState("caregiver");
 	const [userParentType, setUserParentType] = useState(null);
+	const [viewedImage, setViewedImage] = useState(null);
 
-	const openModal = (type, payload = null) =>
-		setModal({ isOpen: true, type, payload });
-	const closeModal = () =>
-		setModal({ isOpen: false, type: null, payload: null });
+	const openModal = (type, payload = null) => setModal({ isOpen: true, type, payload });
+	const closeModal = () => setModal({ isOpen: false, type: null, payload: null });
 	const showEncouragement = (msg) => setEncouragement(msg);
+	const openImageViewer = (url) => setViewedImage(url);
+	const closeImageViewer = () => setViewedImage(null);
 
 	useEffect(() => {
 		let unsubscribeUserDoc = null;
@@ -84,7 +85,6 @@ export const AppProvider = ({ children }) => {
 							lastLoginAt: Date.now(),
 						});
 					} catch (error) {
-						console.warn("User role initialization deferred", error);
 						await setDoc(userRef, {
 							...authProfile,
 							photoURL: u.photoURL,
@@ -107,7 +107,6 @@ export const AppProvider = ({ children }) => {
 							{ merge: true },
 						);
 					} catch (error) {
-						console.warn("User role migration deferred", error);
 						await updateDoc(userRef, {
 							email: u.email,
 							displayName: u.displayName,
@@ -143,8 +142,7 @@ export const AppProvider = ({ children }) => {
 							googlePhotoURL: u.photoURL,
 						});
 					},
-					(error) => {
-						console.error("User listener error", error);
+					() => {
 						setUser({ ...authProfile, currentFamilyId: null });
 					},
 				);
@@ -182,8 +180,7 @@ export const AppProvider = ({ children }) => {
 			(d) => {
 				setFamily(d.exists() ? { id: d.id, ...d.data() } : null);
 			},
-			(error) => {
-				console.error("Family listener error", error);
+			() => {
 				setFamilyDataLoading(false);
 			},
 		);
@@ -205,8 +202,7 @@ export const AppProvider = ({ children }) => {
 					setUserParentType(null);
 				}
 			},
-			(error) => {
-				console.error("Family members listener error", error);
+			() => {
 				setFamilyDataLoading(false);
 			},
 		);
@@ -231,8 +227,7 @@ export const AppProvider = ({ children }) => {
 				}
 				setFamilyDataLoading(false);
 			},
-			(error) => {
-				console.error("Babies listener error", error);
+			() => {
 				setFamilyDataLoading(false);
 			},
 		);
@@ -301,10 +296,7 @@ export const AppProvider = ({ children }) => {
 	});
 
 	const createFamily = async (familyName, parentType = "mother") => {
-		if (!user?.uid) {
-			throw new Error("You need to sign in before creating a family.");
-		}
-
+		if (!user?.uid) throw new Error("You need to sign in before creating a family.");
 		const joinCode = generateJoinCode();
 		const familyRef = await addDoc(collection(db, "families"), {
 			name: familyName.trim(),
@@ -344,10 +336,7 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const createInviteCode = async () => {
-		if (!family?.id) {
-			throw new Error("No family found.");
-		}
-
+		if (!family?.id) throw new Error("No family found.");
 		const joinCode =
 			typeof family.joinCode === "string" && family.joinCode.trim()
 				? family.joinCode.trim().toUpperCase()
@@ -366,7 +355,6 @@ export const AppProvider = ({ children }) => {
 
 	const joinFamily = async (code) => {
 		if (!user?.uid) return "Please sign in before joining a family.";
-
 		const inviteCode = code.trim().toUpperCase();
 		const inviteSnap = await getDoc(doc(db, "invite_codes", inviteCode));
 		if (!inviteSnap.exists()) return "Family not found.";
@@ -416,30 +404,22 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const updateUserProfilePhoto = async (photoURL) => {
-		if (!user?.uid) {
-			throw new Error("You need to sign in before updating your profile.");
-		}
-
+		if (!user?.uid) throw new Error("You need to sign in before updating your profile.");
 		await updateDoc(doc(db, "users", user.uid), {
 			photoURL,
 			updatedAt: Date.now(),
 		});
-
 		if (user.currentFamilyId) {
 			await updateDoc(doc(db, "family_members", `${user.currentFamilyId}_${user.uid}`), {
 				photoURL,
 				updatedAt: Date.now(),
 			});
 		}
-
 		setUser((prev) => (prev ? { ...prev, photoURL } : prev));
 	};
 
 	const addBaby = async (babyData) => {
-		if (!user?.currentFamilyId) {
-			throw new Error("You need to join or create a family first.");
-		}
-
+		if (!user?.currentFamilyId) throw new Error("You need to join or create a family first.");
 		const docRef = await addDoc(collection(db, "babies"), {
 			...babyData,
 			familyId: user.currentFamilyId,
@@ -452,16 +432,12 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const updateBaby = async (babyId, babyData) => {
-		if (!user?.currentFamilyId) {
-			throw new Error("You need to join or create a family first.");
-		}
+		if (!user?.currentFamilyId) throw new Error("You need to join or create a family first.");
 		await updateDoc(doc(db, "babies", babyId), babyData);
 	};
 
 	const deleteBaby = async (babyId) => {
-		if (!user?.currentFamilyId) {
-			throw new Error("You need to join or create a family first.");
-		}
+		if (!user?.currentFamilyId) throw new Error("You need to join or create a family first.");
 		await updateDoc(doc(db, "babies", babyId), {
 			archived: true,
 			archivedAt: Date.now(),
@@ -482,10 +458,7 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const addLog = async (logData) => {
-		if (!user?.currentFamilyId || !activeBaby?.id) {
-			throw new Error("Select a child before adding activity.");
-		}
-
+		if (!user?.currentFamilyId || !activeBaby?.id) throw new Error("Select a child before adding activity.");
 		const logTimestamp = logData.timestamp || Date.now();
 		const dataToSave = { ...logData };
 		delete dataToSave.timestamp;
@@ -499,10 +472,7 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const updateLog = async (logId, updatedData) => {
-		if (!user?.currentFamilyId) {
-			throw new Error("You need to join or create a family first.");
-		}
-
+		if (!user?.currentFamilyId) throw new Error("You need to join or create a family first.");
 		const logTimestamp = updatedData.timestamp || Date.now();
 		const dataToSave = { ...updatedData };
 		delete dataToSave.timestamp;
@@ -513,17 +483,12 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const deleteLog = async (logId) => {
-		if (!user?.currentFamilyId) {
-			throw new Error("You need to join or create a family first.");
-		}
+		if (!user?.currentFamilyId) throw new Error("You need to join or create a family first.");
 		await deleteDoc(doc(db, "logs", logId));
 	};
 
 	const addGrowthLog = async (data) => {
-		if (!user?.currentFamilyId || !activeBaby?.id) {
-			throw new Error("Select a child before adding growth data.");
-		}
-
+		if (!user?.currentFamilyId || !activeBaby?.id) throw new Error("Select a child before adding growth data.");
 		await addDoc(collection(db, "growth"), {
 			...data,
 			familyId: user.currentFamilyId,
@@ -537,10 +502,7 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const updateGrowthLog = async (growthId, data) => {
-		if (!user?.currentFamilyId) {
-			throw new Error("You need to join or create a family first.");
-		}
-
+		if (!user?.currentFamilyId) throw new Error("You need to join or create a family first.");
 		const dataToSave = { ...data };
 		delete dataToSave.id;
 		await updateDoc(doc(db, "growth", growthId), {
@@ -552,10 +514,7 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const deleteGrowthLog = async (growthId) => {
-		if (!user?.currentFamilyId) {
-			throw new Error("You need to join or create a family first.");
-		}
-
+		if (!user?.currentFamilyId) throw new Error("You need to join or create a family first.");
 		await deleteDoc(doc(db, "growth", growthId));
 	};
 
@@ -577,6 +536,7 @@ export const AppProvider = ({ children }) => {
 				familyDataLoading,
 				pendingFamilyId,
 				encouragement,
+				viewedImage,
 				login,
 				logout,
 				createFamily,
@@ -600,6 +560,8 @@ export const AppProvider = ({ children }) => {
 				openModal,
 				closeModal,
 				showEncouragement,
+				openImageViewer,
+				closeImageViewer,
 			}}
 		>
 			{children}

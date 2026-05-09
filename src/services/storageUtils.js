@@ -1,13 +1,28 @@
+import imageCompression from "browser-image-compression";
 import { getDownloadURL, getStorage, ref, uploadBytesResumable } from "firebase/storage";
 import { app } from "./firebase";
 
 const storage = getStorage(app);
 
-const uploadImageAtPath = (file, filePath, onProgress) => {
+const compressImage = async (file) => {
+  try {
+    return await imageCompression(file, {
+      maxSizeMB: 0.1,
+      maxWidthOrHeight: 512,
+      useWebWorker: false,
+      fileType: "image/jpeg",
+    });
+  } catch (e) {
+    return file;
+  }
+};
+
+const uploadImageAtPath = async (file, filePath, onProgress) => {
+  const compressedFile = await compressImage(file);
   return new Promise((resolve, reject) => {
     const storageRef = ref(storage, filePath);
-    const task = uploadBytesResumable(storageRef, file, {
-      contentType: file.type || "image/jpeg",
+    const task = uploadBytesResumable(storageRef, compressedFile, {
+      contentType: "image/jpeg",
       cacheControl: "public, max-age=86400",
     });
 
