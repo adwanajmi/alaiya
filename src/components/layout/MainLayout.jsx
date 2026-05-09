@@ -19,7 +19,6 @@ export default function MainLayout() {
 		encouragement,
 		showEncouragement,
 		familyMembers,
-		openImageViewer,
 	} = useApp();
 
 	const [showNotifs, setShowNotifs] = useState(false);
@@ -91,57 +90,107 @@ export default function MainLayout() {
 		return `${doer} logged an activity`;
 	};
 
+	const hour = new Date().getHours();
+	const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+
 	return (
 		<div className={`app ${themeClass}`}>
-			<div className="header">
-				<div className="header-top">
-					<div className="logo" style={{ fontFamily: "Fredoka, sans-serif", fontSize: 0 }}>
-						<span style={{ fontSize: 24 }}>Bably 🌸</span>
+			<div className="header" style={{
+				padding: "16px 20px 12px",
+				background: "rgba(255, 255, 255, 0.85)",
+				backdropFilter: "blur(24px)",
+				WebkitBackdropFilter: "blur(24px)",
+				borderBottom: "none",
+				boxShadow: "0 4px 24px rgba(0,0,0,0.04)"
+			}}>
+				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: babies.length > 0 ? "16px" : "0" }}>
+					<div style={{ display: "flex", flexDirection: "column" }}>
+						<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+							<span style={{ fontSize: "24px", fontFamily: "Fredoka, sans-serif", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.5px" }}>Bably</span>
+							<span style={{ fontSize: "18px" }}>🌸</span>
+						</div>
+						<div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text3)" }}>
+							Good {timeOfDay}, {user?.displayName?.split(' ')[0] || 'parent'}!
+						</div>
 					</div>
 
-					<div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-						<div ref={notifRef} style={{ position: "relative" }}>
-							<button
-								onClick={handleNotifClick}
-								style={{
-									background: "none",
-									border: "none",
-									cursor: "pointer",
-									fontSize: "22px",
-									position: "relative",
-								}}
-							>
-								🔔
-								{unreadCount > 0 && (
-									<div
-										style={{
-											position: "absolute",
-											top: -2,
-											right: -4,
-											background: "var(--rose-dark)",
-											color: "white",
-											fontSize: "10px",
-											fontWeight: 900,
-											minWidth: "16px",
-											height: "16px",
-											borderRadius: "8px",
-											display: "flex",
-											alignItems: "center",
-											justifyContent: "center",
-											border: "2px solid var(--white)",
-										}}
-									>
-										{unreadCount > 9 ? "9+" : unreadCount}
-									</div>
-								)}
-							</button>
+					<div ref={notifRef} style={{ position: "relative" }}>
+						<button
+							onClick={handleNotifClick}
+							style={{
+								background: "none",
+								border: "none",
+								cursor: "pointer",
+								padding: 0,
+								position: "relative",
+								transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+							}}
+							className="avatar-circle-clickable"
+						>
+							{user?.photoURL ? (
+								<img
+									src={user.photoURL}
+									alt="Profile"
+									className="avatar-circle"
+									style={{
+										width: 42,
+										height: 42,
+										border: "2px solid var(--white)",
+										boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+									}}
+								/>
+							) : (
+								<div
+									className="avatar-circle"
+									style={{
+										width: 42,
+										height: 42,
+										background: "var(--cream2)",
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										fontWeight: 800,
+										border: "2px solid var(--white)",
+										boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+										color: "var(--rose-dark)",
+										fontSize: "16px",
+									}}
+								>
+									{user?.displayName?.charAt(0) || "?"}
+								</div>
+							)}
+							{unreadCount > 0 && (
+								<div
+									style={{
+										position: "absolute",
+										top: -4,
+										right: -4,
+										background: "var(--rose-dark)",
+										color: "white",
+										fontSize: "10px",
+										fontWeight: 900,
+										minWidth: "18px",
+										height: "18px",
+										borderRadius: "9px",
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										border: "2px solid var(--white)",
+										padding: "0 4px",
+										boxShadow: "0 2px 8px rgba(204, 91, 67, 0.4)",
+									}}
+								>
+									{unreadCount > 9 ? "9+" : unreadCount}
+								</div>
+							)}
+						</button>
 
-							{showNotifs && (
+						{showNotifs && (
 								<div
 									className="fade-in"
 									style={{
 										position: "absolute",
-										top: "40px",
+										top: "52px",
 										right: "0px",
 										width: "300px",
 										background: "var(--white)",
@@ -224,64 +273,43 @@ export default function MainLayout() {
 									</div>
 								</div>
 							)}
-						</div>
-
-						<button
-							onClick={() => user?.photoURL && openImageViewer(user.photoURL)}
-							style={{
-								background: "none",
-								border: "none",
-								cursor: user?.photoURL ? "pointer" : "default",
-								padding: 0,
-							}}
-						>
-							{user?.photoURL ? (
-								<img
-									src={user.photoURL}
-									alt="Profile"
-									className="avatar-circle"
-									style={{
-										width: 38,
-										height: 38,
-										border: "2px solid var(--peach)",
-									}}
-								/>
-							) : (
-								<div
-									className="avatar-circle"
-									style={{
-										width: 38,
-										height: 38,
-										background: "var(--cream2)",
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-										fontWeight: 800,
-										border: "2px solid var(--peach)",
-										color: "var(--rose-dark)",
-									}}
-								>
-									{user?.displayName?.charAt(0) || "?"}
-								</div>
-							)}
-						</button>
 					</div>
 				</div>
 
 				{babies.length > 0 && (
-					<div className="baby-switcher">
-						{babies.map((baby) => (
-							<button
-								key={baby.id}
-								className={`baby-tab ${activeBaby?.id === baby.id ? "active" : ""}`}
-								onClick={() => {
-									switchBaby(baby.id);
-									setLastRead(parseInt() || Date.now());
-								}}
-							>
-								{baby.gender === "boy" ? "👦" : "👧"} {baby.name}
-							</button>
-						))}
+					<div className="baby-switcher" style={{ paddingTop: 0 }}>
+						{babies.map((baby) => {
+							const isActive = activeBaby?.id === baby.id;
+							return (
+								<button
+									key={baby.id}
+									className={`baby-tab ${isActive ? "active" : ""}`}
+									onClick={() => {
+										switchBaby(baby.id);
+										setLastRead(Date.now());
+									}}
+								>
+									<div style={{
+										width: "28px",
+										height: "28px",
+										borderRadius: "50%",
+										background: isActive ? "var(--peach)" : "var(--white)",
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										fontSize: "14px",
+										boxShadow: isActive ? "none" : "0 2px 6px rgba(0,0,0,0.04)",
+										transition: "all 0.2s ease",
+										flexShrink: 0
+									}}>
+										{baby.gender === "boy" ? "👦" : "👧"}
+									</div>
+									<span style={{ fontWeight: isActive ? 800 : 700, paddingRight: "8px" }}>
+										{baby.name.split(' ')[0]}
+									</span>
+								</button>
+							);
+						})}
 					</div>
 				)}
 			</div>

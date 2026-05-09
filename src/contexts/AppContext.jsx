@@ -124,7 +124,7 @@ export const AppProvider = ({ children }) => {
 					uid: u.uid,
 					email: u.email,
 					displayName: u.displayName || initialDocData.displayName,
-					photoURL: initialDocData.photoURL || u.photoURL,
+					photoURL: u.photoURL || initialDocData.photoURL,
 					googlePhotoURL: u.photoURL,
 				});
 
@@ -138,7 +138,7 @@ export const AppProvider = ({ children }) => {
 							uid: u.uid,
 							email: u.email,
 							displayName: u.displayName || docData.displayName,
-							photoURL: docData.photoURL || u.photoURL,
+							photoURL: u.photoURL || docData.photoURL,
 							googlePhotoURL: u.photoURL,
 						});
 					},

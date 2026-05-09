@@ -551,9 +551,10 @@ body {
 
 .baby-switcher {
 	display: flex;
-	gap: 10px;
+	gap: 12px;
 	overflow-x: auto;
-	padding-top: 14px;
+	padding-top: 16px;
+	padding-bottom: 4px;
 	scrollbar-width: none;
 }
 
@@ -562,26 +563,30 @@ body {
 }
 
 .baby-tab {
-	padding: 8px 16px;
-	border-radius: 20px;
+	padding: 6px 16px 6px 6px;
+	border-radius: 100px;
 	background: var(--cream2);
 	color: var(--text2);
-	font-size: 13px;
+	font-size: 14px;
 	font-weight: 800;
-	border: 2px solid transparent;
+	border: 1px solid transparent;
 	cursor: pointer;
 	white-space: nowrap;
-	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
+}
+
+.baby-tab:active {
+	transform: scale(0.96);
 }
 
 .baby-tab.active {
 	background: var(--white);
-	color: var(--rose-dark);
-	border-color: var(--rose-dark);
-	box-shadow: 0 4px 12px rgba(204, 91, 67, 0.12);
+	color: var(--text);
+	border-color: var(--peach);
+	box-shadow: 0 4px 16px rgba(204, 91, 67, 0.08);
 }
 
 /* Animation for the floating appreciation card */
@@ -601,58 +606,221 @@ body {
     border-top-right-radius: 40px;
 }
 
+/* ===== Premium Image Viewer / Lightbox ===== */
+
 .image-viewer-overlay {
 	position: fixed;
 	top: 0;
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: rgba(0, 0, 0, 0.85);
-	backdrop-filter: blur(10px);
-	-webkit-backdrop-filter: blur(10px);
+	background: rgba(0, 0, 0, 0.92);
+	backdrop-filter: blur(24px) saturate(1.2);
+	-webkit-backdrop-filter: blur(24px) saturate(1.2);
 	z-index: 99999;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	padding: 24px;
-	cursor: zoom-out;
+	animation: imageViewerFadeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	cursor: default;
+	-webkit-user-select: none;
+	user-select: none;
+	touch-action: pan-y;
 }
 
-.image-viewer-close {
+.image-viewer-overlay.image-viewer-closing {
+	animation: imageViewerFadeOut 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes imageViewerFadeIn {
+	from {
+		opacity: 0;
+		backdrop-filter: blur(0px);
+		-webkit-backdrop-filter: blur(0px);
+	}
+	to {
+		opacity: 1;
+		backdrop-filter: blur(24px) saturate(1.2);
+		-webkit-backdrop-filter: blur(24px) saturate(1.2);
+	}
+}
+
+@keyframes imageViewerFadeOut {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+		transform: scale(0.97);
+	}
+}
+
+/* Top bar with close + download actions */
+.image-viewer-topbar {
 	position: absolute;
-	top: 24px;
-	right: 24px;
-	background: rgba(255, 255, 255, 0.2);
-	border: none;
-	color: white;
-	width: 40px;
-	height: 40px;
+	top: 0;
+	left: 0;
+	right: 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	padding-top: calc(16px + env(safe-area-inset-top));
+	background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%);
+	z-index: 100001;
+}
+
+.image-viewer-action-btn {
+	width: 44px;
+	height: 44px;
 	border-radius: 50%;
-	font-size: 20px;
+	border: none;
+	background: rgba(255, 255, 255, 0.12);
+	color: white;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	z-index: 100000;
+	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+}
+
+.image-viewer-action-btn:active {
+	transform: scale(0.88);
+	background: rgba(255, 255, 255, 0.25);
+}
+
+.image-viewer-label {
+	font-size: 15px;
+	font-weight: 800;
+	color: white;
+	text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+	letter-spacing: -0.2px;
+	text-align: center;
+	flex: 1;
+	padding: 0 12px;
+}
+
+/* Image content area */
+.image-viewer-content {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	padding: 80px 20px 60px 20px;
+	position: relative;
 }
 
 .image-viewer-img {
 	max-width: 100%;
 	max-height: 100%;
 	object-fit: contain;
-	border-radius: 20px;
-	box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-	animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	border-radius: 16px;
+	box-shadow:
+		0 24px 80px rgba(0,0,0,0.5),
+		0 0 0 1px rgba(255,255,255,0.05);
 	cursor: default;
+	opacity: 0;
+	transform: scale(0.92);
+	transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+				transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes zoomIn {
-	from { transform: scale(0.95); opacity: 0; }
-	to { transform: scale(1); opacity: 1; }
+.image-viewer-img-loaded {
+	opacity: 1;
+	transform: scale(1);
 }
+
+.image-viewer-closing .image-viewer-img {
+	transform: scale(0.9);
+	opacity: 0;
+	transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+/* Loading spinner */
+.image-viewer-spinner {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.image-viewer-spinner-ring {
+	width: 40px;
+	height: 40px;
+	border: 3px solid rgba(255,255,255,0.15);
+	border-top-color: rgba(255,255,255,0.8);
+	border-radius: 50%;
+	animation: imageSpinnerRotate 0.8s linear infinite;
+}
+
+@keyframes imageSpinnerRotate {
+	to { transform: rotate(360deg); }
+}
+
+/* Bottom hint */
+.image-viewer-hint {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	text-align: center;
+	padding: 16px;
+	padding-bottom: calc(16px + env(safe-area-inset-bottom));
+	font-size: 12px;
+	font-weight: 700;
+	color: rgba(255, 255, 255, 0.35);
+	letter-spacing: 0.3px;
+	background: linear-gradient(0deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+}
+
+/* ===== Avatar Circle (Rounded Profile Images) ===== */
 
 .avatar-circle {
 	border-radius: 50%;
 	object-fit: cover;
 	aspect-ratio: 1 / 1;
+	transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+				box-shadow 0.25s ease;
+}
+
+.avatar-circle-clickable {
+	cursor: pointer;
+	position: relative;
+}
+
+.avatar-circle-clickable:hover {
+	transform: scale(1.06);
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.avatar-circle-clickable:active {
+	transform: scale(0.96);
+}
+
+/* Subtle ring pulse for clickable avatars */
+.avatar-ring-wrapper {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.avatar-ring-wrapper::before {
+	content: "";
+	position: absolute;
+	inset: -3px;
+	border-radius: 50%;
+	border: 2px solid var(--rose);
+	opacity: 0;
+	animation: avatarRingPulse 3s ease-in-out infinite;
+	pointer-events: none;
+}
+
+@keyframes avatarRingPulse {
+	0%, 100% { opacity: 0; transform: scale(1); }
+	50% { opacity: 0.4; transform: scale(1.04); }
 }

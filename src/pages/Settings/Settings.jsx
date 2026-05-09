@@ -4,7 +4,7 @@ import { QRCode } from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import ChildrenProfiles from "../../components/profiles/ChildrenProfiles";
 import { useApp } from "../../contexts/AppContext";
-import { uploadUserProfileImage } from "../../services/storageUtils";
+
 
 export default function Settings() {
 	const {
@@ -21,7 +21,7 @@ export default function Settings() {
 		confirmRole,
 		cancelRoleSelection,
 		removeMember,
-		updateUserProfilePhoto,
+
 		logout,
 		openImageViewer,
 	} = useApp();
@@ -34,12 +34,7 @@ export default function Settings() {
 	const [isCreatingInviteCode, setIsCreatingInviteCode] = useState(false);
 	const [familyActionError, setFamilyActionError] = useState("");
 	const [parentType, setParentType] = useState("mother");
-	const [profileUpload, setProfileUpload] = useState({
-		uploading: false,
-		progress: 0,
-		previewURL: "",
-		error: "",
-	});
+
 	const familyJoinCode = typeof family?.joinCode === "string" ? family.joinCode.trim() : "";
 	const roleDescriptions = {
 		Mother: "Parent access for feeding, growth, and family care.",
@@ -111,44 +106,6 @@ export default function Settings() {
 		}
 	};
 
-	const handleProfilePhotoSelect = async (e) => {
-		const file = e.target.files?.[0];
-		e.target.value = "";
-		if (!file || !user?.uid) return;
-
-		const previewURL = URL.createObjectURL(file);
-		setProfileUpload({
-			uploading: true,
-			progress: 5,
-			previewURL,
-			error: "",
-		});
-
-		try {
-			const url = await uploadUserProfileImage(file, user.uid, (progress) =>
-				setProfileUpload((prev) => ({
-					...prev,
-					uploading: true,
-					progress,
-					error: "",
-				})),
-			);
-			await updateUserProfilePhoto(url);
-			setProfileUpload({
-				uploading: false,
-				progress: 100,
-				previewURL: "",
-				error: "",
-			});
-		} catch (error) {
-			setProfileUpload((prev) => ({
-				...prev,
-				uploading: false,
-				progress: 0,
-				error: error?.message || "Profile photo upload failed. Please try again.",
-			}));
-		}
-	};
 
 	return (
 		<div className="fade-in">
@@ -191,17 +148,16 @@ export default function Settings() {
 						</div>
 					</div>
 					<div style={{ textAlign: "center" }}>
-						<div style={{ position: "relative", width: 58, height: 58 }}>
-							{profileUpload.previewURL || user?.photoURL ? (
+						<div style={{ width: 58, height: 58 }}>
+							{user?.photoURL ? (
 								<img
-									src={profileUpload.previewURL || user.photoURL}
+									src={user.photoURL}
 									alt="Profile"
-									className="avatar-circle"
-									onClick={() => openImageViewer(profileUpload.previewURL || user.photoURL)}
+									className="avatar-circle avatar-circle-clickable"
+									onClick={() => openImageViewer({ url: user.photoURL, label: user.displayName || "Profile" })}
 									style={{
 										width: "100%",
 										height: "100%",
-										cursor: "pointer",
 										border: "2px solid var(--peach)",
 									}}
 								/>
@@ -224,149 +180,11 @@ export default function Settings() {
 									{user?.displayName?.charAt(0) || "?"}
 								</div>
 							)}
-							<label
-								htmlFor="profile-photo-upload"
-								style={{
-									position: "absolute",
-									right: -4,
-									bottom: -4,
-									width: 26,
-									height: 26,
-									background: "var(--text)",
-									color: "white",
-									borderRadius: "50%",
-									fontSize: 12,
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									cursor: profileUpload.uploading ? "not-allowed" : "pointer",
-									border: "2px solid white",
-								}}
-							>
-								{profileUpload.uploading ? "..." : "📷"}
-							</label>
-							<input
-								id="profile-photo-upload"
-								type="file"
-								accept="image/*"
-								disabled={profileUpload.uploading}
-								style={{ display: "none" }}
-								onChange={handleProfilePhotoSelect}
-							/>
 						</div>
 					</div>
 				</div>
 
-				{profileUpload.uploading && (
-					<div style={{ marginTop: 14 }}>
-						<div
-							style={{
-								height: 8,
-								borderRadius: 999,
-								background: "var(--cream2)",
-								overflow: "hidden",
-							}}
-						>
-							<div
-								style={{
-									width: `${profileUpload.progress || 5}%`,
-									height: "100%",
-									background: "var(--rose-dark)",
-								}}
-							/>
-						</div>
-						<div
-							style={{
-								fontSize: 12,
-								color: "var(--text2)",
-								fontWeight: 800,
-								marginTop: 6,
-							}}
-						>
-							Uploading profile photo... {profileUpload.progress || 0}%
-						</div>
-					</div>
-				)}
 
-				{profileUpload.error && (
-					<div
-						style={{
-							marginTop: 14,
-							padding: 10,
-							background: "var(--peach)",
-							borderRadius: 12,
-							color: "var(--rose-dark)",
-							fontSize: 13,
-							fontWeight: 800,
-							display: "flex",
-							justifyContent: "space-between",
-							gap: 8,
-							alignItems: "center",
-						}}
-					>
-						<span>{profileUpload.error}</span>
-						<label
-							htmlFor="profile-photo-upload"
-							style={{
-								background: "white",
-								borderRadius: 8,
-								padding: "6px 10px",
-								cursor: "pointer",
-							}}
-						>
-							Retry
-						</label>
-					</div>
-				)}
-
-				{isSuperAdmin && (
-					<div
-						style={{
-							marginTop: 16,
-							paddingTop: 16,
-							borderTop: "1px solid var(--border)",
-							display: "grid",
-							gap: 12,
-						}}
-					>
-						<button
-							onClick={() => navigate("/admin")}
-							className="submit-btn"
-							style={{ background: "#33312e", color: "white" }}
-						>
-							Super Admin Dashboard
-						</button>
-						<div
-							style={{
-								display: "grid",
-								gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-								gap: 8,
-							}}
-						>
-							{[
-								["System Management", "/admin/users"],
-								["Family Management", "/admin/families"],
-								["Platform Analytics", "/admin/analytics"],
-							].map(([label, path]) => (
-								<button
-									key={path}
-									type="button"
-									onClick={() => navigate(path)}
-									style={{
-										border: "1px solid var(--border)",
-										background: "var(--cream2)",
-										borderRadius: 12,
-										padding: "10px 12px",
-										fontWeight: 800,
-										cursor: "pointer",
-									}}
-								>
-									{label}
-								</button>
-							))}
-						</div>
-					</div>
-				)}
 			</div>
 
 			<ChildrenProfiles />
@@ -472,7 +290,7 @@ export default function Settings() {
 									</div>
 									{isScanning ? (
 										<div className="fade-in" style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid var(--border)", marginBottom: "12px" }}>
-											<Scanner onScan={(result) => { if (result && result.length > 0) { setJoinCodeInput(result[0].rawValue); setIsScanning(false); } }} onError={() => {}} />
+											<Scanner onScan={(result) => { if (result && result.length > 0) { setJoinCodeInput(result[0].rawValue); setIsScanning(false); } }} onError={() => { }} />
 											<button className="cancel-btn" onClick={() => setIsScanning(false)} style={{ borderRadius: 0, border: "none", borderTop: "1px solid var(--border)", marginTop: 0 }}>Cancel Scan</button>
 										</div>
 									) : (
@@ -527,6 +345,32 @@ export default function Settings() {
 				<button onClick={handleLogout} className="cancel-btn" style={{ background: "var(--white)", border: "1px solid var(--border)", borderRadius: "var(--r)" }}>
 					Sign Out
 				</button>
+			</div>
+
+			<div style={{
+				textAlign: "center",
+				padding: "8px 0 32px 0",
+				color: "var(--text3)",
+				fontSize: "12px",
+				fontWeight: 700,
+				display: "flex",
+				flexDirection: "column",
+				gap: "6px"
+			}}>
+				<div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+					<span style={{ color: "var(--text)", fontWeight: 800, fontSize: "14px" }}>Bably 🌸</span>
+					<span style={{
+						background: "var(--peach)",
+						padding: "2px 8px",
+						borderRadius: "8px",
+						fontSize: "10px",
+						color: "var(--rose-dark)",
+						fontWeight: 900,
+						letterSpacing: "0.5px",
+						textTransform: "uppercase"
+					}}>Beta</span>
+				</div>
+				<div>Developed by Adwa Najmi &copy; 2026</div>
 			</div>
 		</div>
 	);

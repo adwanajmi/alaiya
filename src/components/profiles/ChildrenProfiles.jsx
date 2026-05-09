@@ -282,9 +282,9 @@ function ChildCard({
 					{imageSrc ? (
 						<img
 							src={imageSrc}
-							className="avatar-circle"
-							onClick={() => openImageViewer(imageSrc)}
-							style={{ width: "100%", height: "100%", cursor: "pointer", border: "2px solid var(--peach)" }}
+							className="avatar-circle avatar-circle-clickable"
+							onClick={() => openImageViewer({ url: imageSrc, label: baby.name })}
+							style={{ width: "100%", height: "100%", border: "2px solid var(--peach)" }}
 							alt={baby.name}
 						/>
 					) : (

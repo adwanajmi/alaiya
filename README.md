@@ -8,17 +8,19 @@ A beautiful, real-time Progressive Web App (PWA) designed to help parents, careg
 * **Real-Time Synchronization:** Seamlessly syncs logs across all family members' devices instantly.
 * **Comprehensive Tracking:** Log bottle feeding, direct breastfeeding, breast pumping, sleep, diapers, baths, and medication.
 * **Smart Insights:** End-of-day summaries and intelligent timeline filtering.
+* **Premium UI/UX:** Glassmorphic navigation, soft drop shadows, and fluid animations for a modern, social-app feel.
+* **Interactive Media:** High-quality fullscreen image viewer with download functionality and smooth transitions.
 * **Role-Based Access:** Safe collaboration with distinct "Parent" (full access/admin) and "Caregiver" (restricted view/logging) roles.
-* **Multi-Child Support:** Easily switch between profiles for families with multiple babies.
+* **Multi-Child Support:** Sleek pill-shaped baby switcher for families with multiple babies.
 * **Growth Tracking:** Chart weight, height, and head circumference over time.
 * **QR Code Joining:** Quickly invite grandparents or nannies to the family via a secure QR code scanner.
 
 ## 🛠 Tech Stack
 * **Frontend:** React 19, Vite, React Router DOM v7
 * **Backend/Database:** Firebase (Auth, Firestore, Storage)
-* **Styling/UI:** TailwindCSS (v4), Lucide React
+* **Styling/UI:** Vanilla CSS (Custom Design System with CSS variables and keyframes), Lucide React
 * **Charts/Analytics:** Recharts
-* **Utilities:** `@yudiel/react-qr-scanner` (QR scanning), `browser-image-compression` (Storage optimization)
+* **Utilities:** `@yudiel/react-qr-scanner` (QR scanning)
 
 ## 🚀 Getting Started
 
