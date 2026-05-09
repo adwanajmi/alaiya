@@ -96,222 +96,273 @@ export default function MainLayout() {
 	return (
 		<div className={`app ${themeClass}`}>
 			<div className="header" style={{
-				padding: "16px 20px 12px",
-				background: "rgba(255, 255, 255, 0.85)",
-				backdropFilter: "blur(24px)",
-				WebkitBackdropFilter: "blur(24px)",
+				padding: "16px 20px",
+				background: "linear-gradient(135deg, #FFDADB 0%, #FFEFE5 100%)",
 				borderBottom: "none",
-				boxShadow: "0 4px 24px rgba(0,0,0,0.04)"
+				boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+				display: "flex",
+				alignItems: "center",
+				gap: "14px"
 			}}>
-				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: babies.length > 0 ? "16px" : "0" }}>
-					<div style={{ display: "flex", flexDirection: "column" }}>
-						<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
-							<span style={{ fontSize: "24px", fontFamily: "Fredoka, sans-serif", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.5px" }}>Bably</span>
-							<span style={{ fontSize: "18px" }}>🌸</span>
-						</div>
-						<div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text3)" }}>
-							Good {timeOfDay}, {user?.displayName?.split(' ')[0] || 'parent'}!
-						</div>
-					</div>
-
-					<div ref={notifRef} style={{ position: "relative" }}>
-						<button
-							onClick={handleNotifClick}
+				{/* Left Section: Dynamic Icon & Logo */}
+				<div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+					{activeBaby?.photoURL ? (
+						<img
+							src={activeBaby.photoURL}
+							alt={activeBaby.name || "Baby"}
+							className="avatar-circle"
 							style={{
-								background: "none",
-								border: "none",
-								cursor: "pointer",
-								padding: 0,
-								position: "relative",
-								transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+								width: "46px",
+								height: "46px",
+								border: "2px solid var(--white)",
+								boxShadow: "0 2px 10px rgba(204, 91, 67, 0.25)",
+								objectFit: "cover"
 							}}
-							className="avatar-circle-clickable"
-						>
-							{user?.photoURL ? (
-								<img
-									src={user.photoURL}
-									alt="Profile"
-									className="avatar-circle"
-									style={{
-										width: 42,
-										height: 42,
-										border: "2px solid var(--white)",
-										boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-									}}
-								/>
-							) : (
-								<div
-									className="avatar-circle"
-									style={{
-										width: 42,
-										height: 42,
-										background: "var(--cream2)",
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-										fontWeight: 800,
-										border: "2px solid var(--white)",
-										boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-										color: "var(--rose-dark)",
-										fontSize: "16px",
-									}}
-								>
-									{user?.displayName?.charAt(0) || "?"}
-								</div>
-							)}
-							{unreadCount > 0 && (
-								<div
-									style={{
-										position: "absolute",
-										top: -4,
-										right: -4,
-										background: "var(--rose-dark)",
-										color: "white",
-										fontSize: "10px",
-										fontWeight: 900,
-										minWidth: "18px",
-										height: "18px",
-										borderRadius: "9px",
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-										border: "2px solid var(--white)",
-										padding: "0 4px",
-										boxShadow: "0 2px 8px rgba(204, 91, 67, 0.4)",
-									}}
-								>
-									{unreadCount > 9 ? "9+" : unreadCount}
-								</div>
-							)}
-						</button>
-
-						{showNotifs && (
-								<div
-									className="fade-in"
-									style={{
-										position: "absolute",
-										top: "52px",
-										right: "0px",
-										width: "300px",
-										background: "var(--white)",
-										borderRadius: "var(--r)",
-										boxShadow: "0 10px 40px rgba(0,0,0,0.12)",
-										border: "1px solid var(--border)",
-										overflow: "hidden",
-										zIndex: 100,
-									}}
-								>
-									<div
-										style={{
-											padding: "14px 16px",
-											background: "var(--cream2)",
-											borderBottom: "1px solid var(--border)",
-											display: "flex",
-											justifyContent: "space-between",
-											alignItems: "center",
-										}}
-									>
-										<span style={{ fontWeight: 800, fontSize: "14px", color: "var(--text)" }}>
-											Recent Activity
-										</span>
-										{unreadCount > 0 && (
-											<span style={{ fontSize: "11px", fontWeight: 800, color: "var(--rose-dark)" }}>
-												{unreadCount} New
-											</span>
-										)}
-									</div>
-									<div style={{ maxHeight: "320px", overflowY: "auto" }}>
-										{recentUpdates.length > 0 ? (
-											recentUpdates.map((log) => {
-												const config = ACTIVITY_CONFIG[log.type] || ACTIVITY_CONFIG.note;
-												const isNew = (log.notificationTimestamp || log.timestamp || log.time) > lastRead;
-												return (
-													<div
-														key={log.id}
-														style={{
-															padding: "12px 16px",
-															borderBottom: "1px solid var(--border)",
-															display: "flex",
-															gap: "12px",
-															alignItems: "center",
-															background: isNew ? "var(--peach)" : "var(--white)",
-															transition: "background 0.2s",
-														}}
-													>
-														<div
-															style={{
-																width: "36px",
-																height: "36px",
-																borderRadius: "10px",
-																display: "flex",
-																alignItems: "center",
-																justifyContent: "center",
-																fontSize: "18px",
-																flexShrink: 0,
-																background: `var(--color-${log.type})`,
-																opacity: isNew ? 1 : 0.6,
-															}}
-														>
-															{config.emoji}
-														</div>
-														<div style={{ display: "flex", flexDirection: "column" }}>
-															<span style={{ fontSize: "13px", color: "var(--text)", fontWeight: isNew ? 800 : 600 }}>
-																{getNotifText(log)}
-															</span>
-															<span style={{ fontSize: "11px", color: "var(--text3)", fontWeight: 700 }}>
-																{timeSince(log.notificationTimestamp || log.timestamp || log.time)}
-															</span>
-														</div>
-													</div>
-												);
-											})
-										) : (
-											<div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text3)", fontSize: "13px", fontWeight: 700 }}>
-												No recent updates from others.
-											</div>
-										)}
-									</div>
-								</div>
-							)}
+						/>
+					) : (
+						<div style={{
+							width: "46px",
+							height: "46px",
+							borderRadius: "50%",
+							background: "var(--rose-dark)",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							fontSize: "24px",
+							color: "white",
+							boxShadow: "0 2px 10px rgba(204, 91, 67, 0.25)"
+						}}>
+							{activeBaby ? (activeBaby.gender === 'boy' ? '👦' : '👧') : '👶'}
+						</div>
+					)}
+					<div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+						<span style={{ fontSize: "22px", fontFamily: "Fredoka, sans-serif", fontWeight: 900, color: "var(--text)", letterSpacing: "-0.5px" }}>Bably</span>
+						<span style={{ fontSize: "16px" }}>🌸</span>
 					</div>
 				</div>
 
-				{babies.length > 0 && (
-					<div className="baby-switcher" style={{ paddingTop: 0 }}>
-						{babies.map((baby) => {
-							const isActive = activeBaby?.id === baby.id;
-							return (
-								<button
-									key={baby.id}
-									className={`baby-tab ${isActive ? "active" : ""}`}
-									onClick={() => {
-										switchBaby(baby.id);
-										setLastRead(Date.now());
-									}}
-								>
-									<div style={{
-										width: "28px",
-										height: "28px",
-										borderRadius: "50%",
-										background: isActive ? "var(--peach)" : "var(--white)",
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-										fontSize: "14px",
-										boxShadow: isActive ? "none" : "0 2px 6px rgba(0,0,0,0.04)",
-										transition: "all 0.2s ease",
-										flexShrink: 0
-									}}>
-										{baby.gender === "boy" ? "👦" : "👧"}
-									</div>
-									<span style={{ fontWeight: isActive ? 800 : 700, paddingRight: "8px" }}>
-										{baby.name.split(' ')[0]}
-									</span>
-								</button>
-							);
-						})}
+				{/* Vertical Divider */}
+				<div style={{ width: "1px", height: "42px", background: "rgba(0,0,0,0.06)", flexShrink: 0 }} />
+
+				{/* Middle Section: Greeting & Baby Pills */}
+				<div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, justifyContent: "center" }}>
+					<div style={{ 
+						fontSize: "14px", 
+						fontWeight: 800, 
+						color: "var(--text)", 
+						marginBottom: babies.length > 0 ? "4px" : "0",
+						whiteSpace: "nowrap",
+						overflow: "hidden",
+						textOverflow: "ellipsis"
+					}}>
+						Good {timeOfDay}, {user?.displayName?.split(' ')[0] || 'parent'}!
 					</div>
-				)}
+					
+					{babies.length > 0 && (
+						<div className="baby-switcher" style={{ paddingTop: 0, paddingBottom: 0, gap: "6px" }}>
+							{babies.map((baby) => {
+								const isActive = activeBaby?.id === baby.id;
+								return (
+									<button
+										key={baby.id}
+										className={`baby-tab ${isActive ? "active" : ""}`}
+										onClick={() => {
+											switchBaby(baby.id);
+											setLastRead(Date.now());
+										}}
+										style={{
+											padding: "3px 10px 3px 3px",
+											background: isActive ? "rgba(255,255,255,0.8)" : "transparent",
+											border: "none",
+											boxShadow: isActive ? "0 2px 8px rgba(0,0,0,0.04)" : "none",
+											color: "var(--text)",
+											borderRadius: "100px",
+											minHeight: "28px"
+										}}
+									>
+										{baby.photoURL ? (
+											<img 
+												src={baby.photoURL} 
+												alt={baby.name}
+												className="avatar-circle"
+												style={{
+													width: "22px",
+													height: "22px",
+													border: isActive ? "2px solid var(--peach)" : "2px solid transparent",
+													flexShrink: 0,
+													objectFit: "cover"
+												}}
+											/>
+										) : (
+											<div style={{
+												width: "22px",
+												height: "22px",
+												borderRadius: "50%",
+												background: isActive ? "var(--peach)" : "transparent",
+												display: "flex",
+												alignItems: "center",
+												justifyContent: "center",
+												fontSize: "12px",
+												flexShrink: 0
+											}}>
+												{baby.gender === "boy" ? "👦" : "👧"}
+											</div>
+										)}
+										<span style={{ fontWeight: isActive ? 900 : 700, fontSize: "13px" }}>
+											{baby.name.split(' ')[0]}
+										</span>
+										{isActive && (
+											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--rose-dark)", marginLeft: "2px" }}>
+												<path d="m6 9 6 6 6-6"/>
+											</svg>
+										)}
+									</button>
+								);
+							})}
+						</div>
+					)}
+				</div>
+
+				{/* Right Section: Notification Center */}
+				<div ref={notifRef} style={{ position: "relative", flexShrink: 0 }}>
+					<button
+						onClick={handleNotifClick}
+						style={{
+							background: "var(--white)",
+							border: "1px solid var(--border)",
+							borderRadius: "50%",
+							width: "42px",
+							height: "42px",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							cursor: "pointer",
+							position: "relative",
+							transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+							color: "var(--text)",
+						}}
+					>
+						<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+							<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+							<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+						</svg>
+						
+						{unreadCount > 0 && (
+							<div
+								style={{
+									position: "absolute",
+									top: -4,
+									right: -4,
+									background: "var(--rose-dark)",
+									color: "white",
+									fontSize: "10px",
+									fontWeight: 900,
+									minWidth: "18px",
+									height: "18px",
+									borderRadius: "9px",
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									border: "2px solid var(--white)",
+									padding: "0 4px",
+									boxShadow: "0 2px 8px rgba(204, 91, 67, 0.4)",
+								}}
+							>
+								{unreadCount > 9 ? "9+" : unreadCount}
+							</div>
+						)}
+					</button>
+
+					{showNotifs && (
+						<div
+							className="fade-in"
+							style={{
+								position: "absolute",
+								top: "56px",
+								right: "0px",
+								width: "300px",
+								background: "var(--white)",
+								borderRadius: "var(--r)",
+								boxShadow: "0 10px 40px rgba(0,0,0,0.12)",
+								border: "1px solid var(--border)",
+								overflow: "hidden",
+								zIndex: 100,
+							}}
+						>
+							<div
+								style={{
+									padding: "14px 16px",
+									background: "var(--cream2)",
+									borderBottom: "1px solid var(--border)",
+									display: "flex",
+									justifyContent: "space-between",
+									alignItems: "center",
+								}}
+							>
+								<span style={{ fontWeight: 800, fontSize: "14px", color: "var(--text)" }}>
+									Recent Activity
+								</span>
+								{unreadCount > 0 && (
+									<span style={{ fontSize: "11px", fontWeight: 800, color: "var(--rose-dark)" }}>
+										{unreadCount} New
+									</span>
+								)}
+							</div>
+							<div style={{ maxHeight: "320px", overflowY: "auto" }}>
+								{recentUpdates.length > 0 ? (
+									recentUpdates.map((log) => {
+										const config = ACTIVITY_CONFIG[log.type] || ACTIVITY_CONFIG.note;
+										const isNew = (log.notificationTimestamp || log.timestamp || log.time) > lastRead;
+										return (
+											<div
+												key={log.id}
+												style={{
+													padding: "12px 16px",
+													borderBottom: "1px solid var(--border)",
+													display: "flex",
+													gap: "12px",
+													alignItems: "center",
+													background: isNew ? "var(--peach)" : "var(--white)",
+													transition: "background 0.2s",
+												}}
+											>
+												<div
+													style={{
+														width: "36px",
+														height: "36px",
+														borderRadius: "10px",
+														display: "flex",
+														alignItems: "center",
+														justifyContent: "center",
+														fontSize: "18px",
+														flexShrink: 0,
+														background: `var(--color-${log.type})`,
+														opacity: isNew ? 1 : 0.6,
+													}}
+												>
+													{config.emoji}
+												</div>
+												<div style={{ display: "flex", flexDirection: "column" }}>
+													<span style={{ fontSize: "13px", color: "var(--text)", fontWeight: isNew ? 800 : 600 }}>
+														{getNotifText(log)}
+													</span>
+													<span style={{ fontSize: "11px", color: "var(--text3)", fontWeight: 700 }}>
+														{timeSince(log.notificationTimestamp || log.timestamp || log.time)}
+													</span>
+												</div>
+											</div>
+										);
+									})
+								) : (
+									<div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text3)", fontSize: "13px", fontWeight: 700 }}>
+										No recent updates from others.
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+				</div>
 			</div>
 
 			<div className="content">

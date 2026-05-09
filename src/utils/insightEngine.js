@@ -343,15 +343,21 @@ export const buildInsightContext = ({
 						latestMilkTime,
 						now,
 					) % 60}m`,
-		timeMessage:
-			timeTemplates[timeBand][
-				Math.floor(Math.random() * timeTemplates[timeBand].length)
-			],
-		roleMessage:
-			roleTemplates[roleTone][
-				Math.floor(Math.random() * roleTemplates[roleTone].length)
-			],
 	};
+
+	values.timeMessage = fill(
+		timeTemplates[timeBand][
+			Math.floor(Math.random() * timeTemplates[timeBand].length)
+		],
+		values
+	);
+
+	values.roleMessage = fill(
+		roleTemplates[roleTone][
+			Math.floor(Math.random() * roleTemplates[roleTone].length)
+		],
+		values
+	);
 
 	return {
 		values,
