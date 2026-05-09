@@ -1,76 +1,14 @@
+import { useMemo } from "react";
 import { useApp } from "../../contexts/AppContext";
 import { formatTime } from "../../utils/dateUtils";
+import {
+	buildInsightContext,
+	generateDailyInsight,
+	generateDailySummaryLines,
+} from "../../utils/insightEngine";
 
-export default function Dashboard() {
-	const { activeBaby, logs } = useApp();
-
-	const getLogTime = (l) => l.timestamp || l.time || Date.now();
-	const timeSince = (ts) => {
-		const mins = Math.floor((Date.now() - ts) / 60000);
-		if (mins < 60) return `${mins}m ago`;
-		return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
-	};
-
-	const isToday = (ts) =>
-		new Date(ts).setHours(0, 0, 0, 0) === new Date().setHours(0, 0, 0, 0);
-	const todayLogs = logs.filter((l) => isToday(getLogTime(l)));
-
-	const milkLogs = todayLogs.filter((l) => l.type === "milk");
-
-	const bottleLogs = milkLogs.filter((l) => l.feedType === "bottle");
-	const bottleTotal = bottleLogs.reduce(
-		(acc, curr) => acc + (curr.unit === "oz" ? curr.amount * 30 : curr.amount),
-		0,
-	);
-
-	const directLogs = milkLogs.filter((l) => l.feedType === "direct");
-	const directSessions = directLogs.length;
-
-	const pumpLogs = todayLogs.filter((l) => l.type === "pump");
-	const pumpTotal = pumpLogs.reduce(
-		(acc, curr) => acc + (curr.unit === "oz" ? curr.amount * 30 : curr.amount),
-		0,
-	);
-
-	const sleepLogs = todayLogs.filter((l) => l.type === "sleep");
-	const diapersToday = todayLogs.filter((l) => l.type === "diaper").length;
-
-	const lastMilk = milkLogs[0];
-	const lastDiaper = todayLogs.filter((l) => l.type === "diaper")[0];
-
-	const babyName = activeBaby?.name?.split(" ")[0] || "Baby";
-
-	const getGreeting = () => {
-		const hour = new Date().getHours();
-		if (hour >= 5 && hour < 12) return "Good morning 🌸";
-		if (hour >= 12 && hour < 17) return "Good afternoon 🌤️";
-		if (hour >= 17 && hour < 20) return "Good evening ✨";
-		return "Good night 🌙";
-	};
-
-	const getInsight = () => {
-		const greeting = getGreeting();
-		if (todayLogs.length === 0)
-			return `${greeting} Ready to track ${babyName}'s day?`;
-		let insights = [];
-		if (bottleTotal > 0)
-			insights.push(
-				`${babyName} has consumed ${Math.round(bottleTotal)}ml of milk today.`,
-			);
-		if (lastMilk && Date.now() - getLogTime(lastMilk) > 10800000)
-			insights.push(
-				`It's been over 3 hours since the last feed. Next one likely soon!`,
-			);
-		if (diapersToday > 5)
-			insights.push(
-				`Lots of diaper changes today (${diapersToday})! Keep the cream handy.`,
-			);
-		return insights.length > 0
-			? insights[0]
-			: `${greeting} ${babyName} is having a steady day.`;
-	};
-
-	const MetricCard = ({ title, value, subtext, color, icon }) => (
+function MetricCard({ title, value, subtext, color, icon }) {
+	return (
 		<div
 			style={{
 				background: "var(--white)",
@@ -136,6 +74,78 @@ export default function Dashboard() {
 			</div>
 		</div>
 	);
+}
+
+export default function Dashboard() {
+	const {
+		activeBaby,
+		logs,
+		growthLogs,
+		userParentType,
+		displayRole,
+	} = useApp();
+	const now = useMemo(() => new Date(), []);
+
+	const insightContext = useMemo(
+		() =>
+			buildInsightContext({
+				logs,
+				growthLogs,
+				activeBaby,
+				userParentType,
+				displayRole,
+				now,
+			}),
+		[
+			logs,
+			growthLogs,
+			activeBaby,
+			userParentType,
+			displayRole,
+			now,
+		],
+	);
+	const dailyInsight = useMemo(
+		() => generateDailyInsight(insightContext),
+		[insightContext],
+	);
+	const summaryLines = useMemo(
+		() => generateDailySummaryLines(insightContext),
+		[insightContext],
+	);
+
+	const getLogTime = (l) => l.timestamp || l.time || now.getTime();
+	const timeSince = (ts) => {
+		const mins = Math.floor((now.getTime() - ts) / 60000);
+		if (mins < 60) return `${mins}m ago`;
+		return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+	};
+
+	const todayLogs = insightContext.todayLogs;
+
+	const milkLogs = todayLogs.filter((l) => l.type === "milk");
+
+	const bottleLogs = milkLogs.filter((l) => l.feedType === "bottle");
+	const bottleTotal = bottleLogs.reduce(
+		(acc, curr) => acc + (curr.unit === "oz" ? curr.amount * 30 : curr.amount),
+		0,
+	);
+
+	const directLogs = milkLogs.filter((l) => l.feedType === "direct");
+	const directSessions = directLogs.length;
+
+	const pumpLogs = todayLogs.filter((l) => l.type === "pump");
+	const pumpTotal = pumpLogs.reduce(
+		(acc, curr) => acc + (curr.unit === "oz" ? curr.amount * 30 : curr.amount),
+		0,
+	);
+
+	const diapersToday = todayLogs.filter((l) => l.type === "diaper").length;
+
+	const lastMilk = milkLogs[0];
+	const lastDiaper = todayLogs.filter((l) => l.type === "diaper")[0];
+
+	const babyName = activeBaby?.name?.split(" ")[0] || "Baby";
 
 	return (
 		<div
@@ -176,11 +186,11 @@ export default function Dashboard() {
 					</span>
 				</div>
 				<h2 style={{ fontSize: "20px", fontWeight: 800, lineHeight: 1.3 }}>
-					{getInsight()}
+					{dailyInsight.message}
 				</h2>
 			</div>
 
-			{todayLogs.length > 0 && new Date().getHours() >= 22 && (
+			{todayLogs.length > 0 && now.getHours() >= 22 && (
 				<div
 					style={{
 						background: "var(--white)",
@@ -211,38 +221,14 @@ export default function Dashboard() {
 							fontWeight: 700,
 						}}
 					>
-						{babyName} had a great day today 🌸
+						{babyName} had a full day today 🌸
 						<br />
-						{bottleTotal > 0 && (
-							<>
-								Bottle intake: {Math.round(bottleTotal)}ml
+						{summaryLines.map((line) => (
+							<span key={line}>
+								{line}
 								<br />
-							</>
-						)}
-						{directSessions > 0 && (
-							<>
-								Direct feeding sessions: {directSessions}
-								<br />
-							</>
-						)}
-						{pumpTotal > 0 && (
-							<>
-								Pump output: {Math.round(pumpTotal)}ml
-								<br />
-							</>
-						)}
-						{sleepLogs.length > 0 && (
-							<>
-								Sleep sessions logged: {sleepLogs.length}
-								<br />
-							</>
-						)}
-						{diapersToday > 0 && (
-							<>
-								Diaper changes: {diapersToday}
-								<br />
-							</>
-						)}
+							</span>
+						))}
 						{lastMilk && (
 							<>Last feed was at {formatTime(getLogTime(lastMilk))} ✨</>
 						)}

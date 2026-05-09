@@ -36,8 +36,10 @@ export default function Settings() {
 	const [profileUpload, setProfileUpload] = useState({
 		uploading: false,
 		progress: 0,
+		stage: "",
 		previewURL: "",
 		error: "",
+		success: "",
 	});
 	const familyJoinCode =
 		typeof family?.joinCode === "string" ? family.joinCode.trim() : "";
@@ -132,17 +134,25 @@ export default function Settings() {
 		const previewURL = URL.createObjectURL(file);
 		setProfileUpload({
 			uploading: true,
-			progress: 5,
+			progress: 1,
+			stage: "Preparing photo",
 			previewURL,
 			error: "",
+			success: "",
 		});
 
 		try {
-			const url = await uploadUserProfileImage(file, user.uid, (progress) =>
+			const url = await uploadUserProfileImage(file, user.uid, (status) =>
 				setProfileUpload((prev) => ({
 					...prev,
 					uploading: true,
-					progress,
+					progress: status.progress,
+					stage:
+						status.stage === "compressing"
+							? "Compressing photo"
+							: status.stage === "saving"
+								? "Saving profile"
+								: "Uploading profile photo",
 					error: "",
 				})),
 			);
@@ -150,8 +160,10 @@ export default function Settings() {
 			setProfileUpload({
 				uploading: false,
 				progress: 100,
+				stage: "",
 				previewURL: "",
 				error: "",
+				success: "Profile photo updated.",
 			});
 		} catch (error) {
 			console.error("Failed to update profile photo", error);
@@ -159,7 +171,9 @@ export default function Settings() {
 				...prev,
 				uploading: false,
 				progress: 0,
+				stage: "",
 				error: error?.message || "Profile photo upload failed. Please try again.",
+				success: "",
 			}));
 		}
 	};
@@ -298,8 +312,25 @@ export default function Settings() {
 								marginTop: 6,
 							}}
 						>
-							Uploading profile photo... {profileUpload.progress || 0}%
+							{profileUpload.stage || "Uploading profile photo"}...{" "}
+							{profileUpload.progress || 0}%
 						</div>
+					</div>
+				)}
+
+				{profileUpload.success && (
+					<div
+						style={{
+							marginTop: 14,
+							padding: 10,
+							background: "var(--cream2)",
+							borderRadius: 12,
+							color: "var(--text)",
+							fontSize: 13,
+							fontWeight: 800,
+						}}
+					>
+						{profileUpload.success}
 					</div>
 				)}
 
@@ -344,42 +375,7 @@ export default function Settings() {
 							gap: 12,
 						}}
 					>
-						<button
-							onClick={() => navigate("/admin")}
-							className="submit-btn"
-							style={{ background: "#33312e", color: "white" }}
-						>
-							Super Admin Dashboard
-						</button>
-						<div
-							style={{
-								display: "grid",
-								gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-								gap: 8,
-							}}
-						>
-							{[
-								["System Management", "/admin/users"],
-								["Family Management", "/admin/families"],
-								["Platform Analytics", "/admin/analytics"],
-							].map(([label, path]) => (
-								<button
-									key={path}
-									type="button"
-									onClick={() => navigate(path)}
-									style={{
-										border: "1px solid var(--border)",
-										background: "var(--cream2)",
-										borderRadius: 12,
-										padding: "10px 12px",
-										fontWeight: 800,
-										cursor: "pointer",
-									}}
-								>
-									{label}
-								</button>
-							))}
-						</div>
+						
 					</div>
 				)}
 			</div>
@@ -822,15 +818,42 @@ export default function Settings() {
 			</div>
 
 			<div style={{ display: "grid", gap: "12px", paddingBottom: "24px" }}>
-				{isSuperAdmin && (
-					<button
-						onClick={() => navigate("/admin")}
-						className="submit-btn"
-						style={{ background: "#33312e", color: "white" }}
-					>
-						Super Admin Dashboard
-					</button>
-				)}
+				<button
+							onClick={() => navigate("/admin")}
+							className="submit-btn"
+							style={{ background: "#33312e", color: "white" }}
+						>
+							Super Admin Dashboard
+						</button>
+						<div
+							style={{
+								display: "grid",
+								gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+								gap: 8,
+							}}
+						>
+							{[
+								["System Management", "/admin/users"],
+								["Family Management", "/admin/families"],
+								["Platform Analytics", "/admin/analytics"],
+							].map(([label, path]) => (
+								<button
+									key={path}
+									type="button"
+									onClick={() => navigate(path)}
+									style={{
+										border: "1px solid var(--border)",
+										background: "var(--cream2)",
+										borderRadius: 12,
+										padding: "10px 12px",
+										fontWeight: 800,
+										cursor: "pointer",
+									}}
+								>
+									{label}
+								</button>
+							))}
+						</div>
 				<button
 					onClick={handleLogout}
 					className="cancel-btn"

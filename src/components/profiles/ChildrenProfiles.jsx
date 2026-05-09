@@ -65,7 +65,14 @@ export default function ChildrenProfiles() {
 		const previewURL = URL.createObjectURL(file);
 		setUploadStates((prev) => ({
 			...prev,
-			[babyId]: { uploading: true, progress: 5, error: "", previewURL },
+			[babyId]: {
+				uploading: true,
+				progress: 1,
+				stage: "Preparing photo",
+				error: "",
+				success: "",
+				previewURL,
+			},
 		}));
 
 		try {
@@ -74,13 +81,19 @@ export default function ChildrenProfiles() {
 				user.currentFamilyId,
 				"profiles",
 				babyId,
-				(progress) =>
+				(status) =>
 					setUploadStates((prev) => ({
 						...prev,
 						[babyId]: {
 							...(prev[babyId] || {}),
 							uploading: true,
-							progress,
+							progress: status.progress,
+							stage:
+								status.stage === "compressing"
+									? "Compressing photo"
+									: status.stage === "saving"
+										? "Saving profile"
+										: "Uploading photo",
 							error: "",
 						},
 					})),
@@ -88,7 +101,14 @@ export default function ChildrenProfiles() {
 			await updateBaby(babyId, { photoURL: url });
 			setUploadStates((prev) => ({
 				...prev,
-				[babyId]: { uploading: false, progress: 100, error: "", previewURL: "" },
+				[babyId]: {
+					uploading: false,
+					progress: 100,
+					stage: "",
+					error: "",
+					success: "Photo updated.",
+					previewURL: "",
+				},
 			}));
 		} catch (err) {
 			console.error("Upload failed", err);
@@ -98,7 +118,9 @@ export default function ChildrenProfiles() {
 					...(prev[babyId] || {}),
 					uploading: false,
 					progress: 0,
+					stage: "",
 					error: err?.message || "Upload failed. Please try again.",
+					success: "",
 				},
 			}));
 		}
@@ -527,8 +549,24 @@ function ChildCard({
 										marginTop: 6,
 									}}
 								>
-									Uploading photo... {uploadState.progress || 0}%
+									{uploadState.stage || "Uploading photo"}...{" "}
+									{uploadState.progress || 0}%
 								</div>
+							</div>
+						)}
+						{uploadState?.success && (
+							<div
+								style={{
+									marginTop: 12,
+									padding: 10,
+									background: "var(--cream2)",
+									borderRadius: 12,
+									color: "var(--text)",
+									fontSize: 13,
+									fontWeight: 800,
+								}}
+							>
+								{uploadState.success}
 							</div>
 						)}
 						{uploadState?.error && (

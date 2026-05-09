@@ -51,7 +51,10 @@ service firebase.storage {
 			allow read: if signedIn();
 			allow write: if signedIn()
 				&& firestore.exists(/databases/(default)/documents/babies/$(babyId))
-				&& isFamilyParent(firestore.get(/databases/(default)/documents/babies/$(babyId)).data.familyId)
+				&& (
+					isFamilyParent(firestore.get(/databases/(default)/documents/babies/$(babyId)).data.familyId)
+					|| isFamilyMember(firestore.get(/databases/(default)/documents/babies/$(babyId)).data.familyId)
+				)
 				&& request.resource.size < 2 * 1024 * 1024
 				&& request.resource.contentType.matches("image/.*");
 		}

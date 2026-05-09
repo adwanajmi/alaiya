@@ -11,6 +11,10 @@ import {
 	YAxis,
 } from "recharts";
 import { useApp } from "../../contexts/AppContext";
+import {
+	buildCareReports,
+	formatShareableReport,
+} from "../../utils/reportEngine";
 
 const getDateInputValue = (timestamp) => {
 	if (!timestamp) return new Date().toISOString().split("T")[0];
@@ -35,10 +39,13 @@ export default function Stats() {
 		addGrowthLog,
 		updateGrowthLog,
 		deleteGrowthLog,
+		activeBaby,
+		familyMembers,
 		userRole,
 		isSuperAdmin,
 	} = useApp();
 	const [activeSubTab, setActiveSubTab] = useState("activity");
+	const [reportCopied, setReportCopied] = useState(false);
 	const [growthForm, setGrowthForm] = useState(emptyGrowthForm);
 	const [selectedGrowth, setSelectedGrowth] = useState(null);
 	const [editForm, setEditForm] = useState(emptyGrowthForm);
@@ -51,6 +58,12 @@ export default function Stats() {
 		userRole === "parent" ||
 		isSuperAdmin;
 	const canDeleteGrowth = userRole === "parent" || isSuperAdmin;
+	const reports = buildCareReports({
+		logs,
+		growthLogs,
+		activeBaby,
+		familyMembers,
+	});
 
 	const last7Days = [...Array(7)].map((_, i) => {
 		const d = new Date();
@@ -263,6 +276,18 @@ export default function Stats() {
 		}
 	};
 
+	const handleCopyReport = async () => {
+		const text = formatShareableReport(reports);
+		try {
+			await navigator.clipboard.writeText(text);
+			setReportCopied(true);
+			window.setTimeout(() => setReportCopied(false), 2500);
+		} catch (error) {
+			console.error("Failed to copy report", error);
+			alert(text);
+		}
+	};
+
 	return (
 		<div className="fade-in">
 			<div
@@ -293,6 +318,26 @@ export default function Stats() {
 					}}
 				>
 					Weekly Trends
+				</button>
+				<button
+					onClick={() => setActiveSubTab("reports")}
+					style={{
+						flex: 1,
+						padding: "10px",
+						border: "none",
+						borderRadius: "var(--r2)",
+						fontWeight: 800,
+						background:
+							activeSubTab === "reports" ? "var(--white)" : "transparent",
+						color:
+							activeSubTab === "reports" ? "var(--rose-dark)" : "var(--text3)",
+						boxShadow:
+							activeSubTab === "reports"
+								? "0 1px 4px rgba(0,0,0,0.08)"
+								: "none",
+					}}
+				>
+					Reports
 				</button>
 				<button
 					onClick={() => setActiveSubTab("growth")}
@@ -587,6 +632,186 @@ export default function Stats() {
 							</div>
 						</>
 					)}
+				</div>
+			)}
+
+			{activeSubTab === "reports" && (
+				<div className="fade-in">
+					<div className="section-title">Care Reports</div>
+					<div
+						style={{
+							background: "var(--white)",
+							borderRadius: "var(--r)",
+							padding: 20,
+							border: "1px solid var(--border)",
+							boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
+							marginBottom: 20,
+						}}
+					>
+						<div style={{ fontSize: 18, fontWeight: 900, marginBottom: 6 }}>
+							{reports.weekly.title}
+						</div>
+						<div
+							style={{
+								fontSize: 13,
+								color: "var(--text2)",
+								fontWeight: 800,
+								marginBottom: 16,
+							}}
+						>
+							{reports.babyName} • {reports.weekly.period}
+						</div>
+						<div
+							style={{
+								display: "grid",
+								gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+								gap: 10,
+								marginBottom: 18,
+							}}
+						>
+							{[
+								["Bottle", `${reports.weekly.bottleMl} ml`],
+								["Direct feeds", reports.weekly.directFeeds],
+								["Pump", `${reports.weekly.pumpMl} ml`],
+								["Sleep", `${Math.round(reports.weekly.sleepMinutes / 60)}h`],
+								["Diapers", reports.weekly.diapers],
+								["Care logs", reports.weekly.totalLogs],
+							].map(([label, value]) => (
+								<div
+									key={label}
+									style={{
+										background: "var(--cream2)",
+										borderRadius: 12,
+										padding: 12,
+									}}
+								>
+									<div style={{ fontSize: 18, fontWeight: 900 }}>{value}</div>
+									<div
+										style={{
+											fontSize: 11,
+											fontWeight: 800,
+											color: "var(--text3)",
+											textTransform: "uppercase",
+										}}
+									>
+										{label}
+									</div>
+								</div>
+							))}
+						</div>
+						<button className="submit-btn" onClick={handleCopyReport}>
+							{reportCopied ? "Copied Report" : "Copy Shareable Summary"}
+						</button>
+					</div>
+
+					<div className="section-title">Smart Insights</div>
+					<div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
+						{reports.weekly.highlights.map((highlight) => (
+							<div
+								key={highlight}
+								style={{
+									background: "var(--white)",
+									borderRadius: 14,
+									padding: 14,
+									border: "1px solid var(--border)",
+									fontWeight: 800,
+									color: "var(--text2)",
+								}}
+							>
+								{highlight}
+							</div>
+						))}
+					</div>
+
+					<div className="section-title">Report Types</div>
+					<div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+						{[
+							[
+								"Daily Summary Report",
+								"Quick recap of today’s feeds, sleep, diapers, pumping, and highlights.",
+							],
+							[
+								"Weekly Baby Care Report",
+								"Best for spotting routines, feeding intervals, sleep shifts, and caregiver coverage.",
+							],
+							[
+								"Monthly Growth Report",
+								"Useful for pediatrician visits and tracking weight/height/head-circumference changes.",
+							],
+							[
+								"Feeding Trend Report",
+								"Helps compare bottle intake, direct feeds, and feeding frequency over time.",
+							],
+							[
+								"Pumping Consistency Report",
+								"Helps monitor supply trends, session count, and weekly output changes.",
+							],
+							[
+								"Caregiver Activity Summary",
+								"Shows who contributed care logs and helps families stay aligned.",
+							],
+						].map(([title, body]) => (
+							<div
+								key={title}
+								style={{
+									background: "var(--white)",
+									borderRadius: 14,
+									padding: 16,
+									border: "1px solid var(--border)",
+								}}
+							>
+								<div style={{ fontWeight: 900, marginBottom: 4 }}>{title}</div>
+								<div
+									style={{
+										color: "var(--text2)",
+										fontSize: 13,
+										fontWeight: 700,
+										lineHeight: 1.45,
+									}}
+								>
+									{body}
+								</div>
+							</div>
+						))}
+					</div>
+
+					<div className="section-title">Why Reports Help</div>
+					<div style={{ display: "grid", gap: 8, marginBottom: 20 }}>
+						{reports.benefits.map((benefit) => (
+							<div
+								key={benefit}
+								style={{
+									background: "var(--cream2)",
+									borderRadius: 12,
+									padding: "10px 12px",
+									fontSize: 13,
+									fontWeight: 800,
+									color: "var(--text2)",
+								}}
+							>
+								{benefit}
+							</div>
+						))}
+					</div>
+
+					<div className="section-title">Future AI Reports</div>
+					<div
+						style={{
+							background: "var(--white)",
+							borderRadius: "var(--r)",
+							padding: 16,
+							border: "1px solid var(--border)",
+							fontSize: 13,
+							fontWeight: 700,
+							color: "var(--text2)",
+							lineHeight: 1.55,
+						}}
+					>
+						Report data is now structured for AI-generated observations,
+						predictive feeding/sleep suggestions, trend anomaly detection,
+						weekly summaries, printable pediatrician reports, and email/PDF
+						exports.
+					</div>
 				</div>
 			)}
 
