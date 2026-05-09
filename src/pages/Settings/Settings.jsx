@@ -1,6 +1,6 @@
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { useState } from "react";
-import QRCode from "react-qr-code";
+import { QRCode } from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import ChildrenProfiles from "../../components/profiles/ChildrenProfiles";
 import { useApp } from "../../contexts/AppContext";
@@ -8,10 +8,12 @@ import { useApp } from "../../contexts/AppContext";
 export default function Settings() {
 	const {
 		user,
+		userRole,
 		family,
 		familyMembers,
 		pendingFamilyId,
 		createFamily,
+		createInviteCode,
 		joinFamily,
 		confirmRole,
 		cancelRoleSelection,
@@ -23,12 +25,38 @@ export default function Settings() {
 	const [joinCodeInput, setJoinCodeInput] = useState("");
 	const [isScanning, setIsScanning] = useState(false);
 	const [showQR, setShowQR] = useState(false);
+	const [isCreatingFamily, setIsCreatingFamily] = useState(false);
+	const [isCreatingInviteCode, setIsCreatingInviteCode] = useState(false);
+	const [familyActionError, setFamilyActionError] = useState("");
+	const [parentType, setParentType] = useState("mother");
+	const familyJoinCode =
+		typeof family?.joinCode === "string" ? family.joinCode.trim() : "";
 
 	const handleCreateFamily = async () => {
-		if (newFamilyName.trim()) await createFamily(newFamilyName);
+		const familyName = newFamilyName.trim();
+		setFamilyActionError("");
+
+		if (!familyName) {
+			setFamilyActionError("Enter a family name first.");
+			return;
+		}
+
+		setIsCreatingFamily(true);
+		try {
+			await createFamily(familyName, parentType);
+			setNewFamilyName("");
+		} catch (error) {
+			console.error("Failed to create family", error);
+			setFamilyActionError(
+				error?.message || "Could not create the family. Please try again.",
+			);
+		} finally {
+			setIsCreatingFamily(false);
+		}
 	};
 
 	const handleJoinFamily = async () => {
+		setFamilyActionError("");
 		if (joinCodeInput.trim()) {
 			const error = await joinFamily(joinCodeInput);
 			if (error) alert(error);
@@ -41,9 +69,41 @@ export default function Settings() {
 	};
 
 	const handleCopyCode = () => {
-		if (family?.joinCode) {
-			navigator.clipboard.writeText(family.joinCode);
+		if (familyJoinCode) {
+			navigator.clipboard.writeText(familyJoinCode);
 			alert("Invite code copied to clipboard!");
+		}
+	};
+
+	const handleShowQR = async () => {
+		setFamilyActionError("");
+
+		if (familyJoinCode) {
+			if (
+				!showQR &&
+				(userRole === "parent" || user?.platformRole === "SUPER_ADMIN")
+			) {
+				try {
+					await createInviteCode();
+				} catch (error) {
+					console.warn("Could not sync invite code lookup", error);
+				}
+			}
+			setShowQR((prev) => !prev);
+			return;
+		}
+
+		setIsCreatingInviteCode(true);
+		try {
+			await createInviteCode();
+			setShowQR(true);
+		} catch (error) {
+			console.error("Failed to create invite code", error);
+			setFamilyActionError(
+				error?.message || "Could not create an invite code. Please try again.",
+			);
+		} finally {
+			setIsCreatingInviteCode(false);
 		}
 	};
 
@@ -105,20 +165,22 @@ export default function Settings() {
 								flex: 1,
 							}}
 						>
-							{family.joinCode}
+							{familyJoinCode || "No invite code"}
 						</div>
 						<button
 							onClick={handleCopyCode}
+							disabled={!familyJoinCode}
 							style={{
 								background: "var(--cream2)",
 								border: "none",
 								padding: "16px",
 								borderRadius: "12px",
-								cursor: "pointer",
+								cursor: familyJoinCode ? "pointer" : "not-allowed",
 								fontSize: 18,
 								display: "flex",
 								alignItems: "center",
 								justifyContent: "center",
+								opacity: familyJoinCode ? 1 : 0.5,
 							}}
 						>
 							📋
@@ -126,18 +188,38 @@ export default function Settings() {
 					</div>
 
 					<button
-						onClick={() => setShowQR(!showQR)}
+						onClick={handleShowQR}
+						disabled={isCreatingInviteCode}
 						className="submit-btn"
 						style={{
 							background: "var(--cream2)",
 							color: "var(--text)",
 							padding: "12px",
+							opacity: isCreatingInviteCode ? 0.5 : 1,
+							cursor: isCreatingInviteCode ? "not-allowed" : "pointer",
 						}}
 					>
-						{showQR ? "Hide QR Code" : "Show QR Code"}
+						{isCreatingInviteCode
+							? "Creating Code..."
+							: showQR
+								? "Hide QR Code"
+								: "Show QR Code"}
 					</button>
 
-					{showQR && (
+					{familyActionError && (
+						<div
+							style={{
+								color: "var(--rose-dark)",
+								fontSize: 13,
+								fontWeight: 700,
+								marginTop: 12,
+							}}
+						>
+							{familyActionError}
+						</div>
+					)}
+
+					{showQR && familyJoinCode && (
 						<div
 							className="fade-in"
 							style={{
@@ -150,8 +232,21 @@ export default function Settings() {
 								borderRadius: "var(--r)",
 							}}
 						>
-							<QRCode value={family.joinCode} size={160} />
+							<QRCode value={familyJoinCode} size={160} />
 						</div>
+					)}
+					{!familyJoinCode && (
+						<p
+							style={{
+								color: "var(--text2)",
+								fontSize: 13,
+								fontWeight: 700,
+								marginTop: 12,
+							}}
+						>
+							This family does not have an invite code yet. Tap Show QR Code to
+							create one.
+						</p>
 					)}
 				</div>
 			)}
@@ -177,9 +272,23 @@ export default function Settings() {
 						{pendingFamilyId ? (
 							<div style={{ display: "grid", gap: "12px" }}>
 								<div style={{ fontWeight: 700 }}>Select your role:</div>
+								<div className="type-btns">
+									<button
+										className={`type-btn ${parentType === "mother" ? "selected" : ""}`}
+										onClick={() => setParentType("mother")}
+									>
+										Mother
+									</button>
+									<button
+										className={`type-btn ${parentType === "father" ? "selected" : ""}`}
+										onClick={() => setParentType("father")}
+									>
+										Father
+									</button>
+								</div>
 								<button
 									className="submit-btn"
-									onClick={() => confirmRole("parent")}
+									onClick={() => confirmRole("parent", parentType)}
 								>
 									Join as Parent
 								</button>
@@ -205,13 +314,49 @@ export default function Settings() {
 										style={{ marginBottom: 0 }}
 									/>
 									<button
+										type="button"
 										className="submit-btn"
 										onClick={handleCreateFamily}
-										style={{ width: "auto", padding: "0 20px" }}
+										disabled={isCreatingFamily || !newFamilyName.trim()}
+										style={{
+											width: "auto",
+											padding: "0 20px",
+											opacity:
+												isCreatingFamily || !newFamilyName.trim() ? 0.5 : 1,
+											cursor:
+												isCreatingFamily || !newFamilyName.trim()
+													? "not-allowed"
+													: "pointer",
+										}}
 									>
-										Create
+										{isCreatingFamily ? "Creating..." : "Create"}
 									</button>
 								</div>
+								<div className="type-btns">
+									<button
+										className={`type-btn ${parentType === "mother" ? "selected" : ""}`}
+										onClick={() => setParentType("mother")}
+									>
+										Mother
+									</button>
+									<button
+										className={`type-btn ${parentType === "father" ? "selected" : ""}`}
+										onClick={() => setParentType("father")}
+									>
+										Father
+									</button>
+								</div>
+								{familyActionError && (
+									<div
+										style={{
+											color: "var(--rose-dark)",
+											fontSize: 13,
+											fontWeight: 700,
+										}}
+									>
+										{familyActionError}
+									</div>
+								)}
 								<div
 									style={{
 										borderTop: "1px solid var(--border)",

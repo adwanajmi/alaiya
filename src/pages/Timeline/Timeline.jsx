@@ -5,8 +5,15 @@ import { useApp } from "../../contexts/AppContext";
 import { formatTime } from "../../utils/dateUtils";
 
 export default function Timeline() {
-	const { logs, activeBaby, user, familyMembers, openModal, deleteLog } =
-		useApp();
+	const {
+		logs,
+		growthLogs,
+		activeBaby,
+		user,
+		familyMembers,
+		openModal,
+		deleteLog,
+	} = useApp();
 	const [filter, setFilter] = useState("today");
 
 	const myRole =
@@ -24,8 +31,22 @@ export default function Timeline() {
 		return log.userId === user?.uid;
 	};
 
+	const timelineEvents = [
+		...(logs || []).map((log) => ({
+			...log,
+			eventType: "care",
+			sortTime: log.timestamp || log.time || 0,
+		})),
+		...(growthLogs || []).map((growth) => ({
+			...growth,
+			type: "growth",
+			eventType: "growth",
+			sortTime: growth.updatedAt || growth.createdAt || growth.timestamp || 0,
+		})),
+	].sort((a, b) => b.sortTime - a.sortTime);
+
 	const getFilteredLogs = () => {
-		if (!logs) return [];
+		if (!timelineEvents) return [];
 		const now = new Date();
 		const startOfToday = new Date(
 			now.getFullYear(),
@@ -35,8 +56,8 @@ export default function Timeline() {
 		const startOfYesterday = startOfToday - 86400000;
 		const startOf7Days = startOfToday - 86400000 * 7;
 
-		return logs.filter((log) => {
-			const logTime = log.timestamp || log.time || Date.now();
+		return timelineEvents.filter((log) => {
+			const logTime = log.sortTime || log.timestamp || log.time || Date.now();
 			if (filter === "today") return logTime >= startOfToday;
 			if (filter === "yesterday")
 				return logTime >= startOfYesterday && logTime < startOfToday;
@@ -49,6 +70,10 @@ export default function Timeline() {
 
 	const TimelineCard = ({ log }) => {
 		const config = ACTIVITY_CONFIG[log.type] || ACTIVITY_CONFIG.note;
+		const member = familyMembers.find(
+			(m) => m.userId === (log.updatedBy || log.userId),
+		);
+		const actor = member?.displayName?.split(" ")[0] || "Someone";
 		return (
 			<div className="timeline-card fade-in">
 				<div className={`activity-avatar ${config.color}`}>{config.emoji}</div>
@@ -58,12 +83,14 @@ export default function Timeline() {
 							{config.title}{" "}
 							{log.type === "milk" &&
 								(log.feedType === "direct" ? "(Direct)" : "(Bottle)")}
+							{log.type === "growth" &&
+								(log.updatedBy ? "(Updated)" : "(Measurement)")}
 						</span>
 						<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
 							<span className="timeline-time">
 								{formatTime(log.timestamp || log.time || Date.now())}
 							</span>
-							{canEditOrDelete(log) && (
+							{log.eventType === "care" && canEditOrDelete(log) && (
 								<div style={{ display: "flex", gap: "4px" }}>
 									<button
 										onClick={() => openModal(log.type, log)}
@@ -110,8 +137,19 @@ export default function Timeline() {
 						{log.type === "meds" && log.name}
 						{log.type === "sleep" && "Fell asleep"}
 						{log.type === "bath" && "Splish splash"}
+						{log.type === "growth" && (
+							<>
+								{log.weight && <span>{log.weight} kg</span>}
+								{log.weight && (log.height || log.hc) && " • "}
+								{log.height && <span>{log.height} cm</span>}
+								{log.height && log.hc && " • "}
+								{log.hc && <span>{log.hc} cm HC</span>}
+								<span style={{ color: "var(--text3)" }}> by {actor}</span>
+							</>
+						)}
 					</div>
 					{log.text && <div className="timeline-notes">"{log.text}"</div>}
+					{log.notes && <div className="timeline-notes">"{log.notes}"</div>}
 				</div>
 			</div>
 		);
@@ -165,7 +203,7 @@ export default function Timeline() {
 			) : (
 				<div className="timeline-cards">
 					{filteredLogs.map((log) => (
-						<TimelineCard key={log.id} log={log} />
+						<TimelineCard key={`${log.eventType}-${log.id}`} log={log} />
 					))}
 					{filteredLogs.length === 0 && (
 						<div

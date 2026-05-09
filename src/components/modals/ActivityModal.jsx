@@ -14,6 +14,7 @@ export default function ActivityModal() {
 		openModal,
 		activeBaby,
 		userRole,
+		userParentType,
 		showEncouragement,
 	} = useApp();
 	const [isSaving, setIsSaving] = useState(false);
@@ -113,15 +114,23 @@ export default function ActivityModal() {
 				await addLog(logData);
 				let pool = [];
 				if (userRole === "parent") {
+					const parentMessages =
+						ENCOURAGEMENT_MESSAGES.parent[userParentType] ||
+						ENCOURAGEMENT_MESSAGES.parent.general;
 					if (modal.type === "milk" && formState.feedType === "direct")
-						pool = ENCOURAGEMENT_MESSAGES.parent.direct;
+						pool = parentMessages.direct || parentMessages.general || parentMessages;
 					else if (modal.type === "pump")
-						pool = ENCOURAGEMENT_MESSAGES.parent.pump;
-					else pool = ENCOURAGEMENT_MESSAGES.parent.general;
+						pool = parentMessages.pump || parentMessages.general || parentMessages;
+					else pool = parentMessages.general || ENCOURAGEMENT_MESSAGES.parent.general;
 				} else {
 					pool = ENCOURAGEMENT_MESSAGES.caregiver;
 				}
-				showEncouragement(pool[Math.floor(Math.random() * pool.length)]);
+				const lastMessage = localStorage.getItem("bably_last_encouragement");
+				const nextPool =
+					pool.length > 1 ? pool.filter((msg) => msg !== lastMessage) : pool;
+				const message = nextPool[Math.floor(Math.random() * nextPool.length)];
+				localStorage.setItem("bably_last_encouragement", message);
+				showEncouragement(message);
 			}
 			closeModal();
 		} finally {
@@ -194,7 +203,7 @@ export default function ActivityModal() {
 
 				{modal.type === "pump" && (
 					<>
-						<div className="modal-title">💧 Breast Pump</div>
+						<div className="modal-title">💧 Pumping</div>
 						<div className="form-group">
 							<label className="form-label">Side</label>
 							<div className="type-btns">

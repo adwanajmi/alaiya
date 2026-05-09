@@ -14,7 +14,7 @@ export default function BottomNav() {
 	// 👈 Simplified Parent Actions
 	const parentActions = [
 		{ type: "milk", icon: "🍼", label: "Feed Baby", color: "bg-milk" },
-		{ type: "pump", icon: "💧", label: "Breast Pump", color: "bg-pump" },
+		{ type: "pump", icon: "💧", label: "Pumping", color: "bg-pump" },
 	];
 	
 	const caregiverActions = [

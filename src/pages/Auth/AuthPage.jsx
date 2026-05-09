@@ -1,17 +1,21 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
+import Loading from "../../components/ui/Loading";
 
 export default function AuthPage() {
-	const { login, user } = useApp();
+	const { login, loading, user } = useApp();
 	const navigate = useNavigate();
+	const location = useLocation();
+	const redirectTo = location.state?.from?.pathname || "/";
 
 	useEffect(() => {
 		if (user) {
-			// Redirect automatically if user is authenticated
-			navigate("/", { replace: true });
+			navigate(redirectTo, { replace: true });
 		}
-	}, [user, navigate]);
+	}, [user, navigate, redirectTo]);
+
+	if (loading) return <Loading fullScreen text="Checking your session..." />;
 
 	return (
 		<div
@@ -26,7 +30,7 @@ export default function AuthPage() {
 			}}
 		>
 			<div className="logo" style={{ fontSize: 44, marginBottom: 32 }}>
-				Alaiya 🌸
+				Bably 🌸
 			</div>
 			<p
 				style={{

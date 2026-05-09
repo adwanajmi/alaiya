@@ -20,6 +20,7 @@
 	--color-diaper: #ffe08a;
 	--color-bath: #b5e8e6;
 	--color-meds: #ffc2d1;
+	--color-growth: #cce8d5;
 	--color-note: #e0e0e0;
 	--text: #33312e;
 	--text2: #66635c;
@@ -201,6 +202,7 @@ body {
 .bg-diaper { background: var(--color-diaper); }
 .bg-bath { background: var(--color-bath); }
 .bg-meds { background: var(--color-meds); }
+.bg-growth { background: var(--color-growth); }
 .bg-note { background: var(--color-note); }
 
 .bottom-nav {
@@ -247,6 +249,8 @@ body {
 .fab-button {
 	position: absolute;
 	bottom: -15px; 
+	left: 50%;
+	transform: translateX(-50%);
 	width: 56px;
 	height: 56px;
 	background: var(--rose-dark);
@@ -263,7 +267,7 @@ body {
 	z-index: 50;
 }
 
-.fab-button:active { transform: scale(0.9); }
+.fab-button:active { transform: translateX(-50%) scale(0.9); }
 .fab-icon-inner { transition: transform 0.3s; line-height: 1; }
 .fab-button.open .fab-icon-inner { transform: rotate(45deg); }
 
@@ -291,7 +295,7 @@ body {
 	flex-direction: column;
 	gap: 6px;
 	width: 220px;
-	animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	animation: fabMenuSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .fab-item {
@@ -455,6 +459,11 @@ body {
 @keyframes slideUp {
 	from { transform: translateY(100%); }
 	to { transform: translateY(0); }
+}
+
+@keyframes fabMenuSlideUp {
+	from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+	to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 .quick-btns-grid {

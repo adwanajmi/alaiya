@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service firebase.storage {
+	match /b/{bucket}/o {
+		function signedIn() {
+			return request.auth != null;
+		}
+
+		function isSuperAdmin() {
+			return signedIn()
+				&& firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+				&& firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.platformRole == "SUPER_ADMIN";
+		}
+
+		function isFamilyMember(familyId) {
+			return signedIn()
+				&& firestore.exists(/databases/(default)/documents/family_members/$(familyId + "_" + request.auth.uid))
+				&& firestore.get(/databases/(default)/documents/family_members/$(familyId + "_" + request.auth.uid)).data.status == "active";
+		}
+
+		function isFamilyParent(familyId) {
+			return isSuperAdmin()
+				|| (
+					isFamilyMember(familyId)
+					&& firestore.get(/databases/(default)/documents/family_members/$(familyId + "_" + request.auth.uid)).data.role == "parent"
+				);
+		}
+
+		match /families/{familyId}/{folder}/{fileName} {
+			allow read: if isFamilyMember(familyId) || isSuperAdmin();
+			allow write: if isFamilyParent(familyId)
+				&& request.resource.size < 2 * 1024 * 1024
+				&& request.resource.contentType.matches("image/.*");
+		}
+
+		match /{allPaths=**} {
+			allow read, write: if false;
+		}
+	}
+}

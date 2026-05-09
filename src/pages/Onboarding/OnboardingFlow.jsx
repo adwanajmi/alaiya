@@ -18,6 +18,7 @@ export default function OnboardingFlow({ step }) {
 	const [joinError, setJoinError] = useState("");
 	const [joining, setJoining] = useState(false);
 	const [isScanning, setIsScanning] = useState(false);
+	const [parentType, setParentType] = useState("mother");
 
 	const [babyName, setBabyName] = useState("");
 	const [babyDob, setBabyDob] = useState("");
@@ -43,7 +44,11 @@ export default function OnboardingFlow({ step }) {
 				<div style={{ background: "var(--white)", padding: "24px", borderRadius: "var(--r)", border: "1px solid var(--border)", marginTop: "40px" }}>
 					<h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, textAlign: "center" }}>Choose your role</h2>
 					<div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: 24 }}>
-						<button onClick={() => confirmRole("parent")} className="submit-btn">👨‍🍼 Parent</button>
+						<div className="type-btns" style={{ marginBottom: 4 }}>
+							<button className={`type-btn ${parentType === "mother" ? "selected" : ""}`} onClick={() => setParentType("mother")}>Mother</button>
+							<button className={`type-btn ${parentType === "father" ? "selected" : ""}`} onClick={() => setParentType("father")}>Father</button>
+						</div>
+						<button onClick={() => confirmRole("parent", parentType)} className="submit-btn">👨‍🍼 Join as Parent</button>
 						<button onClick={() => confirmRole("caregiver")} className="submit-btn" style={{ background: "var(--cream2)", color: "var(--text)" }}>👩‍🍼 Caregiver</button>
 						<button onClick={cancelRoleSelection} className="cancel-btn">Cancel</button>
 					</div>
@@ -71,7 +76,7 @@ export default function OnboardingFlow({ step }) {
 						isScanning ? (
 							<div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 								<div style={{ borderRadius: "var(--r2)", overflow: "hidden" }}>
-									<Scanner onScan={handleScan} onError={(e) => setJoinError("Camera error")} />
+									<Scanner onScan={handleScan} onError={() => setJoinError("Camera error")} />
 								</div>
 								{joinError && <p style={{ color: "var(--rose-dark)", fontSize: 13, fontWeight: 700, textAlign: "center" }}>{joinError}</p>}
 								<button onClick={() => setIsScanning(false)} className="cancel-btn">Cancel Scan</button>
@@ -92,7 +97,11 @@ export default function OnboardingFlow({ step }) {
 					) : (
 						<>
 							<input type="text" placeholder="Family Name" value={familyName} onChange={(e) => setFamilyName(e.target.value)} className="form-input" style={{ marginBottom: 16 }} />
-							<button onClick={() => createFamily(familyName)} className="submit-btn" disabled={!familyName.trim()} style={{ opacity: !familyName.trim() ? 0.5 : 1 }}>Create Family</button>
+							<div className="type-btns" style={{ marginBottom: 16 }}>
+								<button className={`type-btn ${parentType === "mother" ? "selected" : ""}`} onClick={() => setParentType("mother")}>Mother</button>
+								<button className={`type-btn ${parentType === "father" ? "selected" : ""}`} onClick={() => setParentType("father")}>Father</button>
+							</div>
+							<button onClick={() => createFamily(familyName, parentType)} className="submit-btn" disabled={!familyName.trim()} style={{ opacity: !familyName.trim() ? 0.5 : 1 }}>Create Family</button>
 						</>
 					)}
 				</div>
@@ -114,7 +123,7 @@ export default function OnboardingFlow({ step }) {
 
 					<div className="form-group" style={{ marginBottom: 12 }}>
 						<label className="form-label">Name</label>
-						<input type="text" placeholder="e.g. Alaiya" value={babyName} onChange={(e) => setBabyName(e.target.value)} className="form-input" />
+						<input type="text" placeholder="e.g. Mia" value={babyName} onChange={(e) => setBabyName(e.target.value)} className="form-input" />
 					</div>
 					<div className="form-group" style={{ marginBottom: 12 }}>
 						<label className="form-label">Date of Birth</label>

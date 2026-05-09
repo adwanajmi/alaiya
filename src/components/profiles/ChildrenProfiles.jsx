@@ -141,7 +141,7 @@ export default function ChildrenProfiles() {
 									setFormData({ ...formData, name: e.target.value })
 								}
 								className="form-input"
-								placeholder="e.g. Mia Aalaiya"
+								placeholder="e.g. Mia"
 							/>
 						</div>
 						<div className="form-group" style={{ marginBottom: 12 }}>

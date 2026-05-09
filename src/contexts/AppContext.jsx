@@ -5,7 +5,6 @@ import {
 	deleteDoc,
 	doc,
 	getDoc,
-	getDocs,
 	limit,
 	onSnapshot,
 	orderBy,
@@ -31,6 +30,7 @@ export const AppProvider = ({ children }) => {
 	const [logs, setLogs] = useState([]);
 	const [growthLogs, setGrowthLogs] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [familyDataLoading, setFamilyDataLoading] = useState(false);
 	const [pendingFamilyId, setPendingFamilyId] = useState(null);
 	const [modal, setModal] = useState({
 		isOpen: false,
@@ -39,6 +39,7 @@ export const AppProvider = ({ children }) => {
 	});
 	const [encouragement, setEncouragement] = useState(null);
 	const [userRole, setUserRole] = useState("caregiver");
+	const [userParentType, setUserParentType] = useState(null);
 
 	const openModal = (type, payload = null) =>
 		setModal({ isOpen: true, type, payload });
@@ -76,19 +77,30 @@ export const AppProvider = ({ children }) => {
 				setActiveBaby(null);
 				setLogs([]);
 				setGrowthLogs([]);
+				setPendingFamilyId(null);
 				setUserRole("caregiver");
+				setUserParentType(null);
+				setFamilyDataLoading(false);
 			}
 			setLoading(false);
 		});
 	}, []);
 
 	useEffect(() => {
-		if (!user?.currentFamilyId) return;
+		if (!user?.currentFamilyId) {
+			return;
+		}
+
+		setFamilyDataLoading(true);
 
 		const unsubFamily = onSnapshot(
 			doc(db, "families", user.currentFamilyId),
 			(d) => {
-				if (d.exists()) setFamily({ id: d.id, ...d.data() });
+				setFamily(d.exists() ? { id: d.id, ...d.data() } : null);
+			},
+			(error) => {
+				console.error("Family listener error", error);
+				setFamilyDataLoading(false);
 			},
 		);
 
@@ -101,7 +113,14 @@ export const AppProvider = ({ children }) => {
 				const members = s.docs.map((d) => ({ id: d.id, ...d.data() }));
 				setFamilyMembers(members);
 				const myMemberDoc = members.find((m) => m.userId === user.uid);
-				if (myMemberDoc) setUserRole(myMemberDoc.role);
+				if (myMemberDoc) {
+					setUserRole(myMemberDoc.role);
+					setUserParentType(myMemberDoc.parentType || null);
+				}
+			},
+			(error) => {
+				console.error("Family members listener error", error);
+				setFamilyDataLoading(false);
 			},
 		);
 
@@ -119,6 +138,11 @@ export const AppProvider = ({ children }) => {
 				) {
 					setActiveBaby(b[0]);
 				}
+				setFamilyDataLoading(false);
+			},
+			(error) => {
+				console.error("Babies listener error", error);
+				setFamilyDataLoading(false);
 			},
 		);
 
@@ -176,11 +200,21 @@ export const AppProvider = ({ children }) => {
 	const login = () => signInWithPopup(auth, googleProvider);
 	const logout = () => signOut(auth);
 
-	const createFamily = async (familyName) => {
+	const createFamily = async (familyName, parentType = "mother") => {
+		if (!user?.uid) {
+			throw new Error("You need to sign in before creating a family.");
+		}
+
 		const joinCode = generateJoinCode();
 		const familyRef = await addDoc(collection(db, "families"), {
-			name: familyName,
+			name: familyName.trim(),
 			joinCode,
+			createdAt: Date.now(),
+			createdBy: user.uid,
+		});
+		await setDoc(doc(db, "invite_codes", joinCode), {
+			familyId: familyRef.id,
+			createdBy: user.uid,
 			createdAt: Date.now(),
 		});
 		const memberId = `${familyRef.id}_${user.uid}`;
@@ -191,6 +225,7 @@ export const AppProvider = ({ children }) => {
 			displayName: user.displayName,
 			photoURL: user.photoURL || null,
 			role: "parent",
+			parentType,
 			status: "active",
 			joinedAt: Date.now(),
 		});
@@ -198,21 +233,42 @@ export const AppProvider = ({ children }) => {
 			currentFamilyId: familyRef.id,
 		});
 		setUser((prev) => ({ ...prev, currentFamilyId: familyRef.id }));
+		return familyRef.id;
+	};
+
+	const createInviteCode = async () => {
+		if (!family?.id) {
+			throw new Error("No family found.");
+		}
+
+		const joinCode =
+			typeof family.joinCode === "string" && family.joinCode.trim()
+				? family.joinCode.trim().toUpperCase()
+				: generateJoinCode();
+		if (family.joinCode !== joinCode) {
+			await updateDoc(doc(db, "families", family.id), { joinCode });
+		}
+		await setDoc(doc(db, "invite_codes", joinCode), {
+			familyId: family.id,
+			createdBy: user.uid,
+			createdAt: Date.now(),
+		});
+		setFamily((prev) => (prev ? { ...prev, joinCode } : prev));
+		return joinCode;
 	};
 
 	const joinFamily = async (code) => {
-		const q = query(
-			collection(db, "families"),
-			where("joinCode", "==", code.trim().toUpperCase()),
-		);
-		const snap = await getDocs(q);
-		if (snap.empty) return "Family not found.";
-		setPendingFamilyId(snap.docs[0].id);
+		if (!user?.uid) return "Please sign in before joining a family.";
+
+		const inviteCode = code.trim().toUpperCase();
+		const inviteSnap = await getDoc(doc(db, "invite_codes", inviteCode));
+		if (!inviteSnap.exists()) return "Family not found.";
+		setPendingFamilyId(inviteSnap.data().familyId);
 		return null;
 	};
 
-	const confirmRole = async (role) => {
-		if (!pendingFamilyId) return;
+	const confirmRole = async (role, parentType = null) => {
+		if (!user?.uid || !pendingFamilyId) return;
 		const memberId = `${pendingFamilyId}_${user.uid}`;
 		await setDoc(doc(db, "family_members", memberId), {
 			familyId: pendingFamilyId,
@@ -221,6 +277,7 @@ export const AppProvider = ({ children }) => {
 			displayName: user.displayName,
 			photoURL: user.photoURL || null,
 			role,
+			parentType: role === "parent" ? parentType || "mother" : null,
 			status: "active",
 			joinedAt: Date.now(),
 		});
@@ -245,6 +302,10 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const addBaby = async (babyData) => {
+		if (!user?.currentFamilyId) {
+			throw new Error("You need to join or create a family first.");
+		}
+
 		const docRef = await addDoc(collection(db, "babies"), {
 			...babyData,
 			familyId: user.currentFamilyId,
@@ -257,10 +318,16 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const updateBaby = async (babyId, babyData) => {
+		if (!user?.currentFamilyId) {
+			throw new Error("You need to join or create a family first.");
+		}
 		await updateDoc(doc(db, "babies", babyId), babyData);
 	};
 
 	const deleteBaby = async (babyId) => {
+		if (!user?.currentFamilyId) {
+			throw new Error("You need to join or create a family first.");
+		}
 		await deleteDoc(doc(db, "babies", babyId));
 	};
 
@@ -270,6 +337,10 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const addLog = async (logData) => {
+		if (!user?.currentFamilyId || !activeBaby?.id) {
+			throw new Error("Select a child before adding activity.");
+		}
+
 		const logTimestamp = logData.timestamp || Date.now();
 		const dataToSave = { ...logData };
 		delete dataToSave.timestamp;
@@ -283,6 +354,10 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const updateLog = async (logId, updatedData) => {
+		if (!user?.currentFamilyId) {
+			throw new Error("You need to join or create a family first.");
+		}
+
 		const logTimestamp = updatedData.timestamp || Date.now();
 		const dataToSave = { ...updatedData };
 		delete dataToSave.timestamp;
@@ -293,16 +368,50 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const deleteLog = async (logId) => {
+		if (!user?.currentFamilyId) {
+			throw new Error("You need to join or create a family first.");
+		}
 		await deleteDoc(doc(db, "logs", logId));
 	};
 
 	const addGrowthLog = async (data) => {
+		if (!user?.currentFamilyId || !activeBaby?.id) {
+			throw new Error("Select a child before adding growth data.");
+		}
+
 		await addDoc(collection(db, "growth"), {
 			...data,
 			familyId: user.currentFamilyId,
 			babyId: activeBaby.id,
+			userId: user.uid,
 			timestamp: data.timestamp || Date.now(),
+			createdAt: Date.now(),
+			lastAction: "created",
+			updatedAt: Date.now(),
 		});
+	};
+
+	const updateGrowthLog = async (growthId, data) => {
+		if (!user?.currentFamilyId) {
+			throw new Error("You need to join or create a family first.");
+		}
+
+		const dataToSave = { ...data };
+		delete dataToSave.id;
+		await updateDoc(doc(db, "growth", growthId), {
+			...dataToSave,
+			lastAction: "updated",
+			updatedAt: Date.now(),
+			updatedBy: user.uid,
+		});
+	};
+
+	const deleteGrowthLog = async (growthId) => {
+		if (!user?.currentFamilyId) {
+			throw new Error("You need to join or create a family first.");
+		}
+
+		await deleteDoc(doc(db, "growth", growthId));
 	};
 
 	return (
@@ -310,6 +419,7 @@ export const AppProvider = ({ children }) => {
 			value={{
 				user,
 				userRole,
+				userParentType,
 				family,
 				familyMembers,
 				babies,
@@ -317,11 +427,13 @@ export const AppProvider = ({ children }) => {
 				logs,
 				growthLogs,
 				loading,
+				familyDataLoading,
 				pendingFamilyId,
 				encouragement,
 				login,
 				logout,
 				createFamily,
+				createInviteCode,
 				joinFamily,
 				confirmRole,
 				cancelRoleSelection,
@@ -334,6 +446,8 @@ export const AppProvider = ({ children }) => {
 				updateLog,
 				deleteLog,
 				addGrowthLog,
+				updateGrowthLog,
+				deleteGrowthLog,
 				modal,
 				openModal,
 				closeModal,

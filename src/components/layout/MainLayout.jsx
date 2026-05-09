@@ -14,17 +14,14 @@ export default function MainLayout() {
 		activeBaby,
 		switchBaby,
 		logs,
+		growthLogs,
 		encouragement,
 		showEncouragement,
 		familyMembers,
 	} = useApp();
 
 	const [showNotifs, setShowNotifs] = useState(false);
-	const [lastRead, setLastRead] = useState(
-		() =>
-			parseInt(localStorage.getItem(`alaiya_lastRead_${activeBaby?.id}`)) ||
-			Date.now(),
-	);
+	const [lastRead, setLastRead] = useState(() => Date.now());
 	const notifRef = useRef(null);
 
 	const themeClass = activeBaby?.gender === "boy" ? "theme-boy" : "theme-girl";
@@ -38,9 +35,26 @@ export default function MainLayout() {
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, []);
 
-	const recentUpdates = logs.filter((l) => l.userId !== user?.uid).slice(0, 10);
+	const growthUpdates = growthLogs.map((growth) => ({
+		...growth,
+		type: "growth",
+		notificationTimestamp:
+			growth.updatedAt || growth.createdAt || growth.timestamp,
+		actorId: growth.updatedBy || growth.userId,
+	}));
+	const careUpdates = logs.map((log) => ({
+		...log,
+		notificationTimestamp: log.timestamp || log.time,
+		actorId: log.userId,
+	}));
+	const recentUpdates = [...careUpdates, ...growthUpdates]
+		.filter((l) => l.actorId !== user?.uid)
+		.sort(
+			(a, b) => (b.notificationTimestamp || 0) - (a.notificationTimestamp || 0),
+		)
+		.slice(0, 10);
 	const unreadCount = recentUpdates.filter(
-		(l) => (l.timestamp || l.time) > lastRead,
+		(l) => (l.notificationTimestamp || l.timestamp || l.time) > lastRead,
 	).length;
 
 	const handleAvatarClick = () => {
@@ -48,7 +62,6 @@ export default function MainLayout() {
 		if (!showNotifs) {
 			const now = Date.now();
 			setLastRead(now);
-			localStorage.setItem(`alaiya_lastRead_${activeBaby?.id}`, now.toString());
 		}
 	};
 
@@ -59,7 +72,7 @@ export default function MainLayout() {
 
 	const getNotifText = (log) => {
 		const babyName = activeBaby?.name?.split(" ")[0] || "Baby";
-		const doer = getMemberName(log.userId);
+		const doer = getMemberName(log.actorId || log.userId);
 
 		if (log.type === "milk")
 			return log.feedType === "bottle"
@@ -71,6 +84,16 @@ export default function MainLayout() {
 		if (log.type === "sleep") return `${doer} logged ${babyName} went to sleep`;
 		if (log.type === "bath") return `${doer} gave ${babyName} a bath`;
 		if (log.type === "meds") return `${doer} gave ${babyName} ${log.name}`;
+		if (log.type === "growth") {
+			const changed = [];
+			if (log.weight) changed.push("weight");
+			if (log.height) changed.push("height");
+			if (log.hc) changed.push("head circumference");
+			const metricText = changed.length ? changed.join(", ") : "growth";
+			return log.lastAction === "updated" || log.updatedBy
+				? `${babyName}'s ${metricText} was updated by ${doer} 🌸`
+				: `New growth entry added by ${doer} ✨`;
+		}
 		return `${doer} logged an activity`;
 	};
 
@@ -78,8 +101,21 @@ export default function MainLayout() {
 		<div className={`app ${themeClass}`}>
 			<div className="header">
 				<div className="header-top">
-					<div className="logo" style={{ fontFamily: "Fredoka, sans-serif" }}>
-						Alaiya 🌸
+					<div
+						className="logo"
+						style={{ fontFamily: "Fredoka, sans-serif", fontSize: 0 }}
+					>
+						<span style={{ fontSize: 24 }}>Bably 🌸</span>
+						{activeBaby?.name && (
+							<span
+								style={{
+									fontFamily: "Nunito, sans-serif",
+									fontSize: 13,
+									fontWeight: 800,
+									color: "var(--text2)",
+								}}
+							></span>
+						)}
 					</div>
 
 					{/* Profile Avatar acts as Notification Toggle */}
@@ -202,7 +238,10 @@ export default function MainLayout() {
 										recentUpdates.map((log) => {
 											const config =
 												ACTIVITY_CONFIG[log.type] || ACTIVITY_CONFIG.note;
-											const isNew = (log.timestamp || log.time) > lastRead;
+											const isNew =
+												(log.notificationTimestamp ||
+													log.timestamp ||
+													log.time) > lastRead;
 											return (
 												<div
 													key={log.id}
@@ -251,7 +290,11 @@ export default function MainLayout() {
 																fontWeight: 700,
 															}}
 														>
-															{timeSince(log.timestamp || log.time)}
+															{timeSince(
+																log.notificationTimestamp ||
+																	log.timestamp ||
+																	log.time,
+															)}
 														</span>
 													</div>
 												</div>
@@ -284,11 +327,7 @@ export default function MainLayout() {
 								className={`baby-tab ${activeBaby?.id === baby.id ? "active" : ""}`}
 								onClick={() => {
 									switchBaby(baby.id);
-									setLastRead(
-										parseInt(
-											localStorage.getItem(`alaiya_lastRead_${baby.id}`),
-										) || Date.now(),
-									);
+									setLastRead(parseInt() || Date.now());
 								}}
 							>
 								{baby.gender === "boy" ? "👦" : "👧"} {baby.name}
