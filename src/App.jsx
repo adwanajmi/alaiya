@@ -6,7 +6,7 @@ import Timeline from "./pages/Timeline/Timeline";
 import Stats from "./pages/Stats/Stats";
 import Settings from "./pages/Settings/Settings";
 import AuthPage from "./pages/Auth/AuthPage";
-import AdminDashboard from "./pages/Admin/AdminDashboard"; 
+import AdminDashboard from "./pages/Admin/AdminDashboard";
 
 export default function App() {
 	return (
@@ -31,6 +31,30 @@ export default function App() {
 					element={
 						<AdminRoute>
 							<AdminDashboard />
+						</AdminRoute>
+					}
+				/>
+				<Route
+					path="/admin/users"
+					element={
+						<AdminRoute>
+							<AdminDashboard view="users" />
+						</AdminRoute>
+					}
+				/>
+				<Route
+					path="/admin/families"
+					element={
+						<AdminRoute>
+							<AdminDashboard view="families" />
+						</AdminRoute>
+					}
+				/>
+				<Route
+					path="/admin/analytics"
+					element={
+						<AdminRoute>
+							<AdminDashboard view="analytics" />
 						</AdminRoute>
 					}
 				/>

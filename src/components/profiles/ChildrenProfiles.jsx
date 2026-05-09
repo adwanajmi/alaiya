@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useApp } from "../../contexts/AppContext";
 import { uploadOptimizedImage } from "../../services/storageUtils";
 import { getAgeString } from "../../utils/dateUtils";
@@ -10,20 +10,23 @@ export default function ChildrenProfiles() {
 		switchBaby,
 		updateBaby,
 		addBaby,
+		deleteBaby,
 		userRole,
 		user,
+		isSuperAdmin,
 		growthLogs,
 		family,
 	} = useApp();
 	const [editingId, setEditingId] = useState(null);
 	const [formData, setFormData] = useState({});
-	const [isUploading, setIsUploading] = useState(false);
-	const fileRef = useRef(null);
+	const [uploadStates, setUploadStates] = useState({});
+	const [deleteTarget, setDeleteTarget] = useState(null);
+	const [deleteError, setDeleteError] = useState("");
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	if (!family || babies.length === 0) return null;
 
-	const isParent =
-		userRole === "parent" || user?.platformRole === "SUPER_ADMIN";
+	const isParent = userRole === "parent" || isSuperAdmin;
 
 	const getLatestGrowth = (babyId) => {
 		const logs = growthLogs
@@ -55,20 +58,68 @@ export default function ChildrenProfiles() {
 	};
 
 	const handleImageSelect = async (e, babyId) => {
-		if (!isParent || !e.target.files[0] || babyId === "new") return;
-		setIsUploading(true);
+		const file = e.target.files?.[0];
+		e.target.value = "";
+		if (!isParent || !file || babyId === "new") return;
+
+		const previewURL = URL.createObjectURL(file);
+		setUploadStates((prev) => ({
+			...prev,
+			[babyId]: { uploading: true, progress: 5, error: "", previewURL },
+		}));
+
 		try {
 			const url = await uploadOptimizedImage(
-				e.target.files[0],
+				file,
 				user.currentFamilyId,
 				"profiles",
 				babyId,
+				(progress) =>
+					setUploadStates((prev) => ({
+						...prev,
+						[babyId]: {
+							...(prev[babyId] || {}),
+							uploading: true,
+							progress,
+							error: "",
+						},
+					})),
 			);
 			await updateBaby(babyId, { photoURL: url });
+			setUploadStates((prev) => ({
+				...prev,
+				[babyId]: { uploading: false, progress: 100, error: "", previewURL: "" },
+			}));
 		} catch (err) {
 			console.error("Upload failed", err);
+			setUploadStates((prev) => ({
+				...prev,
+				[babyId]: {
+					...(prev[babyId] || {}),
+					uploading: false,
+					progress: 0,
+					error: err?.message || "Upload failed. Please try again.",
+				},
+			}));
 		}
-		setIsUploading(false);
+	};
+
+	const handleConfirmDelete = async () => {
+		if (!deleteTarget) return;
+		setIsDeleting(true);
+		setDeleteError("");
+		try {
+			await deleteBaby(deleteTarget.id);
+			setDeleteTarget(null);
+			setEditingId((current) => (current === deleteTarget.id ? null : current));
+		} catch (error) {
+			console.error("Failed to remove child profile", error);
+			setDeleteError(
+				error?.message || "Could not remove this child profile. Please try again.",
+			);
+		} finally {
+			setIsDeleting(false);
+		}
 	};
 
 	return (
@@ -206,19 +257,128 @@ export default function ChildrenProfiles() {
 
 				{/* Existing Children */}
 				{babies.map((baby) => (
-					<div
+					<ChildCard
 						key={baby.id}
-						style={{
-							background: "var(--white)",
-							borderRadius: "var(--r)",
-							padding: "20px",
-							boxShadow: "0 4px 16px rgba(0,0,0,0.03)",
-							border:
-								activeBaby?.id === baby.id
-									? "2px solid var(--peach)"
-									: "1px solid var(--border)",
-						}}
-					>
+						baby={baby}
+						activeBaby={activeBaby}
+						editingId={editingId}
+						formData={formData}
+						uploadState={uploadStates[baby.id]}
+						isParent={isParent}
+						switchBaby={switchBaby}
+						setFormData={setFormData}
+						setDeleteTarget={setDeleteTarget}
+						handleEdit={handleEdit}
+						handleSave={handleSave}
+						handleImageSelect={handleImageSelect}
+						setEditingId={setEditingId}
+						getLatestGrowth={getLatestGrowth}
+					/>
+				))}
+			</div>
+
+			{deleteTarget && (
+				<div
+					className="modal-overlay"
+					onMouseDown={(e) => {
+						if (e.target === e.currentTarget && !isDeleting) {
+							setDeleteTarget(null);
+							setDeleteError("");
+						}
+					}}
+				>
+					<div className="modal" style={{ maxWidth: 420 }}>
+						<div className="modal-title">Remove Child Profile?</div>
+						<p
+							style={{
+								color: "var(--text2)",
+								fontSize: 14,
+								fontWeight: 700,
+								lineHeight: 1.5,
+								marginBottom: 16,
+							}}
+						>
+							Are you sure you want to remove {deleteTarget.name}'s child
+							profile? This will archive the profile and keep related logs safe.
+						</p>
+						{deleteError && (
+							<div
+								style={{
+									color: "var(--rose-dark)",
+									fontSize: 13,
+									fontWeight: 800,
+									marginBottom: 12,
+								}}
+							>
+								{deleteError}
+							</div>
+						)}
+						<div style={{ display: "flex", gap: 8 }}>
+							<button
+								type="button"
+								className="cancel-btn"
+								onClick={() => {
+									setDeleteTarget(null);
+									setDeleteError("");
+								}}
+								disabled={isDeleting}
+								style={{ flex: 1 }}
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								className="submit-btn"
+								onClick={handleConfirmDelete}
+								disabled={isDeleting}
+								style={{
+									flex: 1,
+									background: "var(--rose-dark)",
+									opacity: isDeleting ? 0.6 : 1,
+								}}
+							>
+								{isDeleting ? "Removing..." : "Remove"}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
+function ChildCard({
+	baby,
+	activeBaby,
+	editingId,
+	formData,
+	uploadState,
+	isParent,
+	switchBaby,
+	setFormData,
+	setDeleteTarget,
+	handleEdit,
+	handleSave,
+	handleImageSelect,
+	setEditingId,
+	getLatestGrowth,
+}) {
+	const imageSrc = uploadState?.previewURL || baby.photoURL;
+	const isUploading = Boolean(uploadState?.uploading);
+
+	return (
+		<div
+			style={{
+				background: "var(--white)",
+				borderRadius: "var(--r)",
+				padding: "20px",
+				boxShadow: "0 4px 16px rgba(0,0,0,0.03)",
+				border:
+					activeBaby?.id === baby.id
+						? "2px solid var(--peach)"
+						: "1px solid var(--border)",
+			}}
+		>
 						<div
 							style={{
 								display: "flex",
@@ -241,9 +401,9 @@ export default function ChildrenProfiles() {
 										fontSize: "24px",
 									}}
 								>
-									{baby.photoURL ? (
+									{imageSrc ? (
 										<img
-											src={baby.photoURL}
+											src={imageSrc}
 											style={{
 												width: "100%",
 												height: "100%",
@@ -258,10 +418,8 @@ export default function ChildrenProfiles() {
 									)}
 								</div>
 								{isParent && (
-									<button
-										onClick={() => {
-											if (!isUploading) fileRef.current?.click();
-										}}
+									<label
+										htmlFor={`child-photo-${baby.id}`}
 										style={{
 											position: "absolute",
 											bottom: 0,
@@ -272,20 +430,22 @@ export default function ChildrenProfiles() {
 											borderRadius: "50%",
 											width: "24px",
 											height: "24px",
-											cursor: "pointer",
+											cursor: isUploading ? "not-allowed" : "pointer",
 											display: "flex",
 											alignItems: "center",
 											justifyContent: "center",
 											fontSize: "12px",
+											opacity: isUploading ? 0.7 : 1,
 										}}
 									>
 										{isUploading ? "..." : "📷"}
-									</button>
+									</label>
 								)}
 								<input
+									id={`child-photo-${baby.id}`}
 									type="file"
 									accept="image/*"
-									ref={fileRef}
+									disabled={isUploading}
 									style={{ display: "none" }}
 									onChange={(e) => handleImageSelect(e, baby.id)}
 								/>
@@ -341,6 +501,66 @@ export default function ChildrenProfiles() {
 								)}
 							</div>
 						</div>
+						{uploadState?.uploading && (
+							<div style={{ marginTop: 12 }}>
+								<div
+									style={{
+										height: 8,
+										borderRadius: 999,
+										background: "var(--cream2)",
+										overflow: "hidden",
+									}}
+								>
+									<div
+										style={{
+											width: `${uploadState.progress || 5}%`,
+											height: "100%",
+											background: "var(--rose-dark)",
+										}}
+									/>
+								</div>
+								<div
+									style={{
+										fontSize: 12,
+										color: "var(--text2)",
+										fontWeight: 800,
+										marginTop: 6,
+									}}
+								>
+									Uploading photo... {uploadState.progress || 0}%
+								</div>
+							</div>
+						)}
+						{uploadState?.error && (
+							<div
+								style={{
+									marginTop: 12,
+									padding: 10,
+									background: "var(--peach)",
+									borderRadius: 12,
+									color: "var(--rose-dark)",
+									fontSize: 13,
+									fontWeight: 800,
+									display: "flex",
+									justifyContent: "space-between",
+									gap: 8,
+									alignItems: "center",
+								}}
+							>
+								<span>{uploadState.error}</span>
+								<label
+									htmlFor={`child-photo-${baby.id}`}
+									style={{
+										background: "white",
+										borderRadius: 8,
+										padding: "6px 10px",
+										cursor: "pointer",
+									}}
+								>
+									Retry
+								</label>
+							</div>
+						)}
 
 						{editingId === baby.id && (
 							<div
@@ -395,11 +615,22 @@ export default function ChildrenProfiles() {
 										Cancel
 									</button>
 								</div>
+								{isParent && (
+									<button
+										type="button"
+										className="cancel-btn"
+										onClick={() => setDeleteTarget(baby)}
+										style={{
+											background: "var(--peach)",
+											color: "var(--rose-dark)",
+											border: "1px solid var(--peach)",
+										}}
+									>
+										Remove Child Profile
+									</button>
+								)}
 							</div>
 						)}
 					</div>
-				))}
-			</div>
-		</div>
 	);
 }

@@ -35,8 +35,8 @@ export default function Stats() {
 		addGrowthLog,
 		updateGrowthLog,
 		deleteGrowthLog,
-		user,
 		userRole,
+		isSuperAdmin,
 	} = useApp();
 	const [activeSubTab, setActiveSubTab] = useState("activity");
 	const [growthForm, setGrowthForm] = useState(emptyGrowthForm);
@@ -48,9 +48,9 @@ export default function Stats() {
 
 	const canEditGrowth =
 		userRole === "caregiver" ||
-		userRole === "parent" || user?.platformRole === "SUPER_ADMIN";
-	const canDeleteGrowth =
-		userRole === "parent" || user?.platformRole === "SUPER_ADMIN";
+		userRole === "parent" ||
+		isSuperAdmin;
+	const canDeleteGrowth = userRole === "parent" || isSuperAdmin;
 
 	const last7Days = [...Array(7)].map((_, i) => {
 		const d = new Date();

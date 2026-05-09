@@ -15,6 +15,11 @@ import {
 } from "firebase/firestore";
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db, googleProvider } from "../services/firebase";
+import {
+	getDefaultUserRoleFields,
+	getDisplayRole,
+	isSuperAdminUser,
+} from "../utils/roles";
 
 const AppContext = createContext();
 
@@ -48,27 +53,101 @@ export const AppProvider = ({ children }) => {
 	const showEncouragement = (msg) => setEncouragement(msg);
 
 	useEffect(() => {
-		return auth.onAuthStateChanged(async (u) => {
+		let unsubscribeUserDoc = null;
+
+		const unsubscribeAuth = auth.onAuthStateChanged(async (u) => {
+			if (unsubscribeUserDoc) {
+				unsubscribeUserDoc();
+				unsubscribeUserDoc = null;
+			}
+
 			if (u) {
-				const userDoc = await getDoc(doc(db, "users", u.uid));
+				const userRef = doc(db, "users", u.uid);
+				const userDoc = await getDoc(userRef);
+				const authProfile = {
+					uid: u.uid,
+					email: u.email,
+					displayName: u.displayName,
+					googlePhotoURL: u.photoURL,
+				};
+				const existingUserData = userDoc.exists() ? userDoc.data() : {};
+				const roleFields = getDefaultUserRoleFields(authProfile, existingUserData);
+
 				if (!userDoc.exists()) {
-					await setDoc(doc(db, "users", u.uid), {
-						uid: u.uid,
-						email: u.email,
-						displayName: u.displayName,
-						photoURL: u.photoURL,
-						currentFamilyId: null,
-					});
-					setUser({
-						uid: u.uid,
-						email: u.email,
-						displayName: u.displayName,
-						photoURL: u.photoURL,
-						currentFamilyId: null,
-					});
+					try {
+						await setDoc(userRef, {
+							...authProfile,
+							...roleFields,
+							photoURL: u.photoURL,
+							currentFamilyId: null,
+							createdAt: Date.now(),
+							lastLoginAt: Date.now(),
+						});
+					} catch (error) {
+						console.warn("User role initialization deferred", error);
+						await setDoc(userRef, {
+							...authProfile,
+							photoURL: u.photoURL,
+							currentFamilyId: null,
+							createdAt: Date.now(),
+							lastLoginAt: Date.now(),
+						});
+					}
 				} else {
-					setUser({ ...userDoc.data(), photoURL: u.photoURL });
+					try {
+						await setDoc(
+							userRef,
+							{
+								email: u.email,
+								displayName: u.displayName,
+								googlePhotoURL: u.photoURL,
+								...roleFields,
+								lastLoginAt: Date.now(),
+							},
+							{ merge: true },
+						);
+					} catch (error) {
+						console.warn("User role migration deferred", error);
+						await updateDoc(userRef, {
+							email: u.email,
+							displayName: u.displayName,
+							googlePhotoURL: u.photoURL,
+							lastLoginAt: Date.now(),
+						});
+					}
 				}
+
+				const initialDocData = { ...existingUserData, ...roleFields };
+				setUser({
+					...authProfile,
+					...initialDocData,
+					currentFamilyId: initialDocData.currentFamilyId || null,
+					uid: u.uid,
+					email: u.email,
+					displayName: u.displayName || initialDocData.displayName,
+					photoURL: initialDocData.photoURL || u.photoURL,
+					googlePhotoURL: u.photoURL,
+				});
+
+				unsubscribeUserDoc = onSnapshot(
+					userRef,
+					(snapshot) => {
+						const docData = snapshot.exists() ? snapshot.data() : {};
+						setUser({
+							...authProfile,
+							...docData,
+							uid: u.uid,
+							email: u.email,
+							displayName: u.displayName || docData.displayName,
+							photoURL: docData.photoURL || u.photoURL,
+							googlePhotoURL: u.photoURL,
+						});
+					},
+					(error) => {
+						console.error("User listener error", error);
+						setUser({ ...authProfile, currentFamilyId: null });
+					},
+				);
 			} else {
 				setUser(null);
 				setFamily(null);
@@ -84,6 +163,11 @@ export const AppProvider = ({ children }) => {
 			}
 			setLoading(false);
 		});
+
+		return () => {
+			unsubscribeAuth();
+			if (unsubscribeUserDoc) unsubscribeUserDoc();
+		};
 	}, []);
 
 	useEffect(() => {
@@ -116,6 +200,9 @@ export const AppProvider = ({ children }) => {
 				if (myMemberDoc) {
 					setUserRole(myMemberDoc.role);
 					setUserParentType(myMemberDoc.parentType || null);
+				} else {
+					setUserRole("caregiver");
+					setUserParentType(null);
 				}
 			},
 			(error) => {
@@ -130,13 +217,17 @@ export const AppProvider = ({ children }) => {
 				where("familyId", "==", user.currentFamilyId),
 			),
 			(s) => {
-				const b = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+				const b = s.docs
+					.map((d) => ({ id: d.id, ...d.data() }))
+					.filter((baby) => !baby.archived);
 				setBabies(b);
 				if (
 					b.length > 0 &&
 					(!activeBaby || !b.find((x) => x.id === activeBaby?.id))
 				) {
 					setActiveBaby(b[0]);
+				} else if (b.length === 0) {
+					setActiveBaby(null);
 				}
 				setFamilyDataLoading(false);
 			},
@@ -200,6 +291,15 @@ export const AppProvider = ({ children }) => {
 	const login = () => signInWithPopup(auth, googleProvider);
 	const logout = () => signOut(auth);
 
+	const isSuperAdmin = isSuperAdminUser(user);
+	const isFamilyCreator = Boolean(family?.createdBy && family.createdBy === user?.uid);
+	const displayRole = getDisplayRole({
+		user,
+		familyRole: userRole,
+		parentType: userParentType,
+		isFamilyCreator,
+	});
+
 	const createFamily = async (familyName, parentType = "mother") => {
 		if (!user?.uid) {
 			throw new Error("You need to sign in before creating a family.");
@@ -231,8 +331,15 @@ export const AppProvider = ({ children }) => {
 		});
 		await updateDoc(doc(db, "users", user.uid), {
 			currentFamilyId: familyRef.id,
+			accountType: "parent",
+			parentType,
 		});
-		setUser((prev) => ({ ...prev, currentFamilyId: familyRef.id }));
+		setUser((prev) => ({
+			...prev,
+			currentFamilyId: familyRef.id,
+			accountType: "parent",
+			parentType,
+		}));
 		return familyRef.id;
 	};
 
@@ -283,8 +390,15 @@ export const AppProvider = ({ children }) => {
 		});
 		await updateDoc(doc(db, "users", user.uid), {
 			currentFamilyId: pendingFamilyId,
+			accountType: role === "parent" ? "parent" : "caregiver",
+			parentType: role === "parent" ? parentType || "mother" : null,
 		});
-		setUser((prev) => ({ ...prev, currentFamilyId: pendingFamilyId }));
+		setUser((prev) => ({
+			...prev,
+			currentFamilyId: pendingFamilyId,
+			accountType: role === "parent" ? "parent" : "caregiver",
+			parentType: role === "parent" ? parentType || "mother" : null,
+		}));
 		setPendingFamilyId(null);
 	};
 
@@ -299,6 +413,26 @@ export const AppProvider = ({ children }) => {
 			setBabies([]);
 			setLogs([]);
 		}
+	};
+
+	const updateUserProfilePhoto = async (photoURL) => {
+		if (!user?.uid) {
+			throw new Error("You need to sign in before updating your profile.");
+		}
+
+		await updateDoc(doc(db, "users", user.uid), {
+			photoURL,
+			updatedAt: Date.now(),
+		});
+
+		if (user.currentFamilyId) {
+			await updateDoc(doc(db, "family_members", `${user.currentFamilyId}_${user.uid}`), {
+				photoURL,
+				updatedAt: Date.now(),
+			});
+		}
+
+		setUser((prev) => (prev ? { ...prev, photoURL } : prev));
 	};
 
 	const addBaby = async (babyData) => {
@@ -328,7 +462,18 @@ export const AppProvider = ({ children }) => {
 		if (!user?.currentFamilyId) {
 			throw new Error("You need to join or create a family first.");
 		}
-		await deleteDoc(doc(db, "babies", babyId));
+		await updateDoc(doc(db, "babies", babyId), {
+			archived: true,
+			archivedAt: Date.now(),
+			archivedBy: user.uid,
+		});
+		const nextBabies = babies.filter((baby) => baby.id !== babyId);
+		setBabies(nextBabies);
+		if (activeBaby?.id === babyId) {
+			setActiveBaby(nextBabies[0] || null);
+			setLogs([]);
+			setGrowthLogs([]);
+		}
 	};
 
 	const switchBaby = (babyId) => {
@@ -420,6 +565,8 @@ export const AppProvider = ({ children }) => {
 				user,
 				userRole,
 				userParentType,
+				isSuperAdmin,
+				displayRole,
 				family,
 				familyMembers,
 				babies,
@@ -438,6 +585,7 @@ export const AppProvider = ({ children }) => {
 				confirmRole,
 				cancelRoleSelection,
 				removeMember,
+				updateUserProfilePhoto,
 				addBaby,
 				updateBaby,
 				deleteBaby,

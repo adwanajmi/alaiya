@@ -6,10 +6,10 @@ export default function BottomNav() {
 	const location = useLocation();
 	const activeTab = location.pathname;
 	
-	const { user, familyMembers, openModal } = useApp();
+	const { userRole, isSuperAdmin, openModal } = useApp();
 	const [isFabOpen, setIsFabOpen] = useState(false);
 
-	const myRole = familyMembers.find((m) => m.userId === user?.uid)?.role || "parent";
+	const myRole = isSuperAdmin ? "parent" : userRole || "caregiver";
 
 	// 👈 Simplified Parent Actions
 	const parentActions = [

@@ -8,8 +8,15 @@ service firebase.storage {
 
 		function isSuperAdmin() {
 			return signedIn()
+				&& (
+					request.auth.uid == "TGYVJ3HHl4Z56EYupmLlOuYHzPT2"
+					|| request.auth.token.email == "adwanajmi96@gmail.com"
+				)
 				&& firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-				&& firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.platformRole == "SUPER_ADMIN";
+				&& (
+					firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "superAdmin"
+					|| firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.platformRole == "SUPER_ADMIN"
+				);
 		}
 
 		function isFamilyMember(familyId) {
@@ -29,6 +36,22 @@ service firebase.storage {
 		match /families/{familyId}/{folder}/{fileName} {
 			allow read: if isFamilyMember(familyId) || isSuperAdmin();
 			allow write: if isFamilyParent(familyId)
+				&& request.resource.size < 2 * 1024 * 1024
+				&& request.resource.contentType.matches("image/.*");
+		}
+
+		match /users/{uid}/profile.jpg {
+			allow read: if signedIn();
+			allow write: if request.auth.uid == uid
+				&& request.resource.size < 2 * 1024 * 1024
+				&& request.resource.contentType.matches("image/.*");
+		}
+
+		match /babies/{babyId}/profile.jpg {
+			allow read: if signedIn();
+			allow write: if signedIn()
+				&& firestore.exists(/databases/(default)/documents/babies/$(babyId))
+				&& isFamilyParent(firestore.get(/databases/(default)/documents/babies/$(babyId)).data.familyId)
 				&& request.resource.size < 2 * 1024 * 1024
 				&& request.resource.contentType.matches("image/.*");
 		}

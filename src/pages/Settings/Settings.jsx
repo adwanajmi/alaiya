@@ -4,11 +4,14 @@ import { QRCode } from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import ChildrenProfiles from "../../components/profiles/ChildrenProfiles";
 import { useApp } from "../../contexts/AppContext";
+import { uploadUserProfileImage } from "../../services/storageUtils";
 
 export default function Settings() {
 	const {
 		user,
 		userRole,
+		displayRole,
+		isSuperAdmin,
 		family,
 		familyMembers,
 		pendingFamilyId,
@@ -18,6 +21,7 @@ export default function Settings() {
 		confirmRole,
 		cancelRoleSelection,
 		removeMember,
+		updateUserProfilePhoto,
 		logout,
 	} = useApp();
 	const navigate = useNavigate();
@@ -29,8 +33,21 @@ export default function Settings() {
 	const [isCreatingInviteCode, setIsCreatingInviteCode] = useState(false);
 	const [familyActionError, setFamilyActionError] = useState("");
 	const [parentType, setParentType] = useState("mother");
+	const [profileUpload, setProfileUpload] = useState({
+		uploading: false,
+		progress: 0,
+		previewURL: "",
+		error: "",
+	});
 	const familyJoinCode =
 		typeof family?.joinCode === "string" ? family.joinCode.trim() : "";
+	const roleDescriptions = {
+		Mother: "Parent access for feeding, growth, and family care.",
+		Father: "Parent access for feeding, growth, and family care.",
+		Caregiver: "Care access for daily logs and shared family updates.",
+		"Parent Admin": "Parent access plus family setup and member management.",
+		"Super Admin": "Platform-wide access for system management.",
+	};
 
 	const handleCreateFamily = async () => {
 		const familyName = newFamilyName.trim();
@@ -81,7 +98,7 @@ export default function Settings() {
 		if (familyJoinCode) {
 			if (
 				!showQR &&
-				(userRole === "parent" || user?.platformRole === "SUPER_ADMIN")
+				(userRole === "parent" || isSuperAdmin)
 			) {
 				try {
 					await createInviteCode();
@@ -107,9 +124,265 @@ export default function Settings() {
 		}
 	};
 
+	const handleProfilePhotoSelect = async (e) => {
+		const file = e.target.files?.[0];
+		e.target.value = "";
+		if (!file || !user?.uid) return;
+
+		const previewURL = URL.createObjectURL(file);
+		setProfileUpload({
+			uploading: true,
+			progress: 5,
+			previewURL,
+			error: "",
+		});
+
+		try {
+			const url = await uploadUserProfileImage(file, user.uid, (progress) =>
+				setProfileUpload((prev) => ({
+					...prev,
+					uploading: true,
+					progress,
+					error: "",
+				})),
+			);
+			await updateUserProfilePhoto(url);
+			setProfileUpload({
+				uploading: false,
+				progress: 100,
+				previewURL: "",
+				error: "",
+			});
+		} catch (error) {
+			console.error("Failed to update profile photo", error);
+			setProfileUpload((prev) => ({
+				...prev,
+				uploading: false,
+				progress: 0,
+				error: error?.message || "Profile photo upload failed. Please try again.",
+			}));
+		}
+	};
+
 	return (
 		<div className="fade-in">
 			<div className="section-title">Settings</div>
+
+			<div
+				style={{
+					background: "var(--white)",
+					borderRadius: "var(--r)",
+					padding: 20,
+					marginBottom: 24,
+					boxShadow: "0 4px 16px rgba(0,0,0,0.03)",
+					border: "1px solid var(--border)",
+				}}
+			>
+				<div
+					style={{
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "center",
+						gap: 16,
+					}}
+				>
+					<div>
+						<div style={{ fontSize: 13, color: "var(--text2)", fontWeight: 800 }}>
+							Current Role
+						</div>
+						<div style={{ fontSize: 22, fontWeight: 900, marginTop: 4 }}>
+							{displayRole}
+						</div>
+						<div
+							style={{
+								fontSize: 13,
+								color: "var(--text2)",
+								fontWeight: 700,
+								marginTop: 4,
+							}}
+						>
+							{roleDescriptions[displayRole]}
+						</div>
+					</div>
+					<div style={{ textAlign: "center" }}>
+						<label
+							htmlFor="profile-photo-upload"
+							style={{
+								width: 58,
+								height: 58,
+								borderRadius: "50%",
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								cursor: profileUpload.uploading ? "not-allowed" : "pointer",
+								position: "relative",
+								overflow: "hidden",
+								border: "2px solid var(--peach)",
+								background: "var(--cream2)",
+							}}
+						>
+							{profileUpload.previewURL || user?.photoURL ? (
+								<img
+									src={profileUpload.previewURL || user.photoURL}
+									alt="Profile"
+									style={{
+										width: "100%",
+										height: "100%",
+										objectFit: "cover",
+									}}
+								/>
+							) : (
+								<span
+									style={{
+										fontWeight: 900,
+										color: "var(--rose-dark)",
+										fontSize: 20,
+									}}
+								>
+									{user?.displayName?.charAt(0) || "?"}
+								</span>
+							)}
+							<span
+								style={{
+									position: "absolute",
+									right: 0,
+									bottom: 0,
+									width: 22,
+									height: 22,
+									background: "var(--text)",
+									color: "white",
+									borderRadius: "50%",
+									fontSize: 11,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+								}}
+							>
+								{profileUpload.uploading ? "..." : "📷"}
+							</span>
+						</label>
+						<input
+							id="profile-photo-upload"
+							type="file"
+							accept="image/*"
+							disabled={profileUpload.uploading}
+							style={{ display: "none" }}
+							onChange={handleProfilePhotoSelect}
+						/>
+					</div>
+				</div>
+
+				{profileUpload.uploading && (
+					<div style={{ marginTop: 14 }}>
+						<div
+							style={{
+								height: 8,
+								borderRadius: 999,
+								background: "var(--cream2)",
+								overflow: "hidden",
+							}}
+						>
+							<div
+								style={{
+									width: `${profileUpload.progress || 5}%`,
+									height: "100%",
+									background: "var(--rose-dark)",
+								}}
+							/>
+						</div>
+						<div
+							style={{
+								fontSize: 12,
+								color: "var(--text2)",
+								fontWeight: 800,
+								marginTop: 6,
+							}}
+						>
+							Uploading profile photo... {profileUpload.progress || 0}%
+						</div>
+					</div>
+				)}
+
+				{profileUpload.error && (
+					<div
+						style={{
+							marginTop: 14,
+							padding: 10,
+							background: "var(--peach)",
+							borderRadius: 12,
+							color: "var(--rose-dark)",
+							fontSize: 13,
+							fontWeight: 800,
+							display: "flex",
+							justifyContent: "space-between",
+							gap: 8,
+							alignItems: "center",
+						}}
+					>
+						<span>{profileUpload.error}</span>
+						<label
+							htmlFor="profile-photo-upload"
+							style={{
+								background: "white",
+								borderRadius: 8,
+								padding: "6px 10px",
+								cursor: "pointer",
+							}}
+						>
+							Retry
+						</label>
+					</div>
+				)}
+
+				{isSuperAdmin && (
+					<div
+						style={{
+							marginTop: 16,
+							paddingTop: 16,
+							borderTop: "1px solid var(--border)",
+							display: "grid",
+							gap: 12,
+						}}
+					>
+						<button
+							onClick={() => navigate("/admin")}
+							className="submit-btn"
+							style={{ background: "#33312e", color: "white" }}
+						>
+							Super Admin Dashboard
+						</button>
+						<div
+							style={{
+								display: "grid",
+								gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+								gap: 8,
+							}}
+						>
+							{[
+								["System Management", "/admin/users"],
+								["Family Management", "/admin/families"],
+								["Platform Analytics", "/admin/analytics"],
+							].map(([label, path]) => (
+								<button
+									key={path}
+									type="button"
+									onClick={() => navigate(path)}
+									style={{
+										border: "1px solid var(--border)",
+										background: "var(--cream2)",
+										borderRadius: 12,
+										padding: "10px 12px",
+										fontWeight: 800,
+										cursor: "pointer",
+									}}
+								>
+									{label}
+								</button>
+							))}
+						</div>
+					</div>
+				)}
+			</div>
 
 			<ChildrenProfiles />
 
@@ -508,7 +781,13 @@ export default function Settings() {
 														fontWeight: 600,
 													}}
 												>
-													{m.role}
+													{m.userId === user?.uid
+														? displayRole
+														: m.role === "parent" && m.parentType === "father"
+															? "Father"
+															: m.role === "parent"
+																? "Mother"
+																: "Caregiver"}
 												</div>
 											</div>
 										</div>
@@ -543,13 +822,13 @@ export default function Settings() {
 			</div>
 
 			<div style={{ display: "grid", gap: "12px", paddingBottom: "24px" }}>
-				{user?.platformRole === "SUPER_ADMIN" && (
+				{isSuperAdmin && (
 					<button
 						onClick={() => navigate("/admin")}
 						className="submit-btn"
 						style={{ background: "#33312e", color: "white" }}
 					>
-						👑 Open Platform Admin
+						Super Admin Dashboard
 					</button>
 				)}
 				<button

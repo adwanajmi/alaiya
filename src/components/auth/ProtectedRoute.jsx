@@ -13,11 +13,11 @@ export function ProtectedRoute({ children }) {
 }
 
 export function AdminRoute({ children }) {
-	const { loading, user } = useApp();
+	const { loading, user, isSuperAdmin } = useApp();
 
 	if (loading) return <Loading fullScreen text="Checking your session..." />;
 	if (!user) return <Navigate to="/auth" replace />;
-	if (user.platformRole !== "SUPER_ADMIN") return <Navigate to="/" replace />;
+	if (!isSuperAdmin) return <Navigate to="/" replace />;
 
 	return children;
 }

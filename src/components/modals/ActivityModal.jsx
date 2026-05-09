@@ -15,6 +15,7 @@ export default function ActivityModal() {
 		activeBaby,
 		userRole,
 		userParentType,
+		isSuperAdmin,
 		showEncouragement,
 	} = useApp();
 	const [isSaving, setIsSaving] = useState(false);
@@ -113,7 +114,7 @@ export default function ActivityModal() {
 			} else {
 				await addLog(logData);
 				let pool = [];
-				if (userRole === "parent") {
+				if (userRole === "parent" || isSuperAdmin) {
 					const parentMessages =
 						ENCOURAGEMENT_MESSAGES.parent[userParentType] ||
 						ENCOURAGEMENT_MESSAGES.parent.general;
@@ -181,7 +182,7 @@ export default function ActivityModal() {
 								if (
 									type === "pump" &&
 									userRole !== "parent" &&
-									userRole !== "SUPER_ADMIN"
+									!isSuperAdmin
 								)
 									return null;
 								return (

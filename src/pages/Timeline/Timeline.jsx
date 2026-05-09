@@ -11,6 +11,7 @@ export default function Timeline() {
 		activeBaby,
 		user,
 		familyMembers,
+		isSuperAdmin,
 		openModal,
 		deleteLog,
 	} = useApp();
@@ -18,7 +19,6 @@ export default function Timeline() {
 
 	const myRole =
 		familyMembers.find((m) => m.userId === user?.uid)?.role || "caregiver";
-	const isSuperAdmin = user?.platformRole === "SUPER_ADMIN";
 
 	const handleDelete = async (logId) => {
 		if (window.confirm("Are you sure you want to delete this log?")) {

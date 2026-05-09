@@ -14,10 +14,44 @@ service cloud.firestore {
 			return get(/databases/$(database)/documents/users/$(uid));
 		}
 
+		function isOwnerIdentity() {
+			return signedIn()
+				&& (
+					request.auth.uid == "TGYVJ3HHl4Z56EYupmLlOuYHzPT2"
+					|| request.auth.token.email == "adwanajmi96@gmail.com"
+				);
+		}
+
+		function validInitialUserRole(uid) {
+			return (
+				uid == "TGYVJ3HHl4Z56EYupmLlOuYHzPT2"
+				&& request.resource.data.role == "superAdmin"
+			) || (
+				uid != "TGYVJ3HHl4Z56EYupmLlOuYHzPT2"
+				&& request.resource.data.role in ["parentAdmin", "parent", "caregiver"]
+			);
+		}
+
+		function roleUnchanged() {
+			return !request.resource.data.diff(resource.data).affectedKeys()
+				.hasAny(["role", "platformRole"]);
+		}
+
+		function safeRoleMigration(uid) {
+			return !("role" in resource.data)
+				&& validInitialUserRole(uid)
+				&& !request.resource.data.diff(resource.data).affectedKeys()
+					.hasAny(["platformRole"]);
+		}
+
 		function isSuperAdmin() {
 			return signedIn()
+				&& isOwnerIdentity()
 				&& exists(/databases/$(database)/documents/users/$(request.auth.uid))
-				&& userDoc(request.auth.uid).data.platformRole == "SUPER_ADMIN";
+				&& (
+					userDoc(request.auth.uid).data.role == "superAdmin"
+					|| userDoc(request.auth.uid).data.platformRole == "SUPER_ADMIN"
+				);
 		}
 
 		function memberDoc(familyId, uid) {
@@ -41,10 +75,11 @@ service cloud.firestore {
 
 		match /users/{uid} {
 			allow create: if isSelf(uid)
-				&& !("platformRole" in request.resource.data);
+				&& !("platformRole" in request.resource.data)
+				&& validInitialUserRole(uid);
 			allow read: if isSelf(uid) || isSuperAdmin();
 			allow update: if isSelf(uid)
-				&& request.resource.data.platformRole == resource.data.platformRole;
+				&& (roleUnchanged() || safeRoleMigration(uid));
 			allow delete: if isSuperAdmin();
 		}
 
@@ -74,7 +109,14 @@ service cloud.firestore {
 				&& request.resource.data.userId == request.auth.uid
 				&& request.resource.data.familyId is string;
 			allow read: if isFamilyMember(resource.data.familyId) || isSuperAdmin();
-			allow update: if isFamilyParent(resource.data.familyId) || request.resource.data.userId == request.auth.uid;
+			allow update: if isFamilyParent(resource.data.familyId)
+				|| (
+					resource.data.userId == request.auth.uid
+					&& request.resource.data.userId == resource.data.userId
+					&& request.resource.data.familyId == resource.data.familyId
+					&& request.resource.data.role == resource.data.role
+					&& request.resource.data.parentType == resource.data.parentType
+				);
 			allow delete: if isFamilyParent(resource.data.familyId) || resource.data.userId == request.auth.uid;
 		}
 
