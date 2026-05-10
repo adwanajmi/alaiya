@@ -135,8 +135,24 @@ export default function Timeline() {
 							</span>
 						)}
 						{log.type === "meds" && log.name}
-						{log.type === "sleep" && "Fell asleep"}
-						{log.type === "bath" && "Splish splash"}
+						{log.type === "sleep" && (
+							<div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+								<span style={{ fontWeight: 800, color: "var(--text)" }}>
+									{log.isSleeping ? "Currently Sleeping 🌙" : `${log.sleepType || "Sleep"} • ${Math.floor(log.duration / 60)}h ${log.duration % 60}m`}
+								</span>
+								{log.startTime && log.endTime && (
+									<span style={{ fontSize: "12px", color: "var(--text3)" }}>
+										{formatTime(log.startTime)} → {formatTime(log.endTime)}
+									</span>
+								)}
+								{log.isSleeping && log.startTime && (
+									<span style={{ fontSize: "12px", color: "var(--text3)" }}>
+										Started at {formatTime(log.startTime)}
+									</span>
+								)}
+							</div>
+						)}
+						{log.type === "bath" && "Splish splash 🛁"}
 						{log.type === "growth" && (
 							<>
 								{log.weight && <span>{log.weight} kg</span>}

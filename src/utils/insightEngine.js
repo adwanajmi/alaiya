@@ -319,6 +319,8 @@ export const buildInsightContext = ({
 		(sum, log) => sum + Number(log.duration || 0),
 		0,
 	);
+	const napCount = sleepLogs.filter(l => l.sleepType === "Nap").length;
+	const nightSleepCount = sleepLogs.filter(l => l.sleepType === "Night Sleep").length;
 	const actorIds = todayLogs.map((log) => log.userId).filter(Boolean);
 	const uniqueActors = new Set(actorIds).size;
 
@@ -333,6 +335,11 @@ export const buildInsightContext = ({
 		pumpPlural: pumpLogs.length === 1 ? "" : "s",
 		sleepSessions: sleepLogs.length,
 		sleepPlural: sleepLogs.length === 1 ? "" : "s",
+		sleepDuration: `${Math.floor(sleepMinutes / 60)}h ${sleepMinutes % 60}m`,
+		napCount,
+		napPlural: napCount === 1 ? "" : "s",
+		nightSleepCount,
+		nightSleepPlural: nightSleepCount === 1 ? "" : "s",
 		diaperCount: diaperLogs.length,
 		growthToday: todayGrowthLogs.length,
 		uniqueActors,
@@ -371,6 +378,8 @@ export const buildInsightContext = ({
 		pumpSessions: pumpLogs.length,
 		sleepSessions: sleepLogs.length,
 		sleepMinutes,
+		napCount,
+		nightSleepCount,
 		diaperCount: diaperLogs.length,
 		growthToday: todayGrowthLogs.length,
 		uniqueActors,
@@ -420,7 +429,9 @@ export const generateDailySummaryLines = (context) => {
 		lines.push(`Pump output: ${values.pumpTotal}ml`);
 	}
 	if (context.sleepSessions > 0) {
-		lines.push(`Sleep sessions logged: ${values.sleepSessions}`);
+		lines.push(`${values.baby} slept a total of ${values.sleepDuration} today 🌙`);
+		if (context.napCount > 0) lines.push(`- ${values.napCount} nap${values.napPlural}`);
+		if (context.nightSleepCount > 0) lines.push(`- ${values.nightSleepCount} night sleep session${values.nightSleepPlural}`);
 	}
 	if (context.diaperCount > 0) {
 		lines.push(`Diaper changes: ${values.diaperCount}`);

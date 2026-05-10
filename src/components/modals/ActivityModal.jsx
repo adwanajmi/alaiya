@@ -31,6 +31,9 @@ export default function ActivityModal() {
 		note: "",
 		logDate: "",
 		logTime: "",
+		sleepStart: "",
+		sleepEnd: "",
+		isManualSleep: false,
 	});
 
 	useEffect(() => {
@@ -53,6 +56,9 @@ export default function ActivityModal() {
 					note: modal.payload.text || "",
 					logDate: local.toISOString().split("T")[0],
 					logTime: local.toISOString().split("T")[1].substring(0, 5),
+					sleepStart: modal.payload.startTime ? new Date(modal.payload.startTime).toISOString().split("T")[1].substring(0, 5) : "",
+					sleepEnd: modal.payload.endTime ? new Date(modal.payload.endTime).toISOString().split("T")[1].substring(0, 5) : "",
+					isManualSleep: !!(modal.payload.startTime && modal.payload.endTime),
 				});
 			} else {
 				setFormState({
@@ -67,6 +73,9 @@ export default function ActivityModal() {
 					note: "",
 					logDate: local.toISOString().split("T")[0],
 					logTime: local.toISOString().split("T")[1].substring(0, 5),
+					sleepStart: "",
+					sleepEnd: "",
+					isManualSleep: false,
 				});
 			}
 		}
@@ -106,7 +115,46 @@ export default function ActivityModal() {
 		}
 		if (modal.type === "diaper") logData.diaperType = formState.diaperType;
 		if (modal.type === "meds") logData.name = formState.name || "Medication";
-		if (modal.type === "sleep") logData.isSleeping = true;
+		
+		if (modal.type === "sleep") {
+			if (formState.isManualSleep && formState.sleepStart && formState.sleepEnd) {
+				const [sH, sM] = formState.sleepStart.split(":").map(Number);
+				const [eH, eM] = formState.sleepEnd.split(":").map(Number);
+				
+				let startTs = new Date(customTimestamp).setHours(sH, sM, 0, 0);
+				let endTs = new Date(customTimestamp).setHours(eH, eM, 0, 0);
+				
+				// Handle overnight sleep in manual mode
+				if (endTs <= startTs) endTs += 24 * 60 * 60 * 1000;
+				
+				const diffMins = Math.round((endTs - startTs) / 60000);
+				const hour = new Date(startTs).getHours();
+				const sleepType = (diffMins < 300 && hour >= 7 && hour < 19) ? "Nap" : "Night Sleep";
+				
+				logData.startTime = startTs;
+				logData.endTime = endTs;
+				logData.duration = diffMins;
+				logData.sleepType = sleepType;
+				logData.timestamp = startTs; // Use start time as primary timestamp
+			} else if (modal.payload?.isSleeping) {
+				// Ending an active sleep session
+				const endTs = Date.now();
+				const startTs = modal.payload.timestamp;
+				const diffMins = Math.round((endTs - startTs) / 60000);
+				const hour = new Date(startTs).getHours();
+				const sleepType = (diffMins < 300 && hour >= 7 && hour < 19) ? "Nap" : "Night Sleep";
+				
+				logData.startTime = startTs;
+				logData.endTime = endTs;
+				logData.duration = diffMins;
+				logData.sleepType = sleepType;
+				logData.isSleeping = false;
+			} else {
+				// Starting a new live sleep session
+				logData.isSleeping = true;
+				logData.startTime = Date.now();
+			}
+		}
 
 		try {
 			if (modal.payload?.id) {
@@ -451,10 +499,65 @@ export default function ActivityModal() {
 					</>
 				)}
 
-				{(modal.type === "sleep" || modal.type === "bath") && (
-					<div className="modal-title">
-						{modal.type === "sleep" ? "😴 Log Sleep" : "🛁 Log Bath"}
-					</div>
+				{modal.type === "sleep" && (
+					<>
+						<div className="modal-title">😴 Sleep Tracking</div>
+						{modal.payload?.isSleeping ? (
+							<div style={{ textAlign: "center", marginBottom: "24px" }}>
+								<div style={{ fontSize: "48px", marginBottom: "8px" }}>🌙</div>
+								<div style={{ fontWeight: 800, fontSize: "18px", color: "var(--text)" }}>
+									{activeBaby?.name?.split(" ")[0]} is sleeping
+								</div>
+								<div style={{ color: "var(--text3)", fontSize: "14px", fontWeight: 600 }}>
+									Started at {new Date(modal.payload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+								</div>
+							</div>
+						) : (
+							<div className="form-group">
+								<div className="type-btns" style={{ marginBottom: "20px" }}>
+									<button
+										className={`type-btn ${!formState.isManualSleep ? "selected" : ""}`}
+										onClick={() => setFormState({ ...formState, isManualSleep: false })}
+									>
+										✨ Live Mode
+									</button>
+									<button
+										className={`type-btn ${formState.isManualSleep ? "selected" : ""}`}
+										onClick={() => setFormState({ ...formState, isManualSleep: true })}
+									>
+										📝 Manual Log
+									</button>
+								</div>
+
+								{formState.isManualSleep && (
+									<div style={{ display: "flex", gap: "12px", animation: "fadeIn 0.3s ease-out" }}>
+										<div style={{ flex: 1 }}>
+											<label className="form-label">Start Time</label>
+											<input
+												type="time"
+												className="form-input"
+												value={formState.sleepStart}
+												onChange={(e) => setFormState({ ...formState, sleepStart: e.target.value })}
+											/>
+										</div>
+										<div style={{ flex: 1 }}>
+											<label className="form-label">End Time</label>
+											<input
+												type="time"
+												className="form-input"
+												value={formState.sleepEnd}
+												onChange={(e) => setFormState({ ...formState, sleepEnd: e.target.value })}
+											/>
+										</div>
+									</div>
+								)}
+							</div>
+						)}
+					</>
+				)}
+
+				{modal.type === "bath" && (
+					<div className="modal-title">🛁 Log Bath</div>
 				)}
 
 				{modal.type === "meds" && (
@@ -515,13 +618,20 @@ export default function ActivityModal() {
 							className="submit-btn"
 							onClick={handleModalSubmit}
 							disabled={isSaving}
-							style={{ opacity: isSaving ? 0.7 : 1 }}
+							style={{ 
+								opacity: isSaving ? 0.7 : 1,
+								background: modal.payload?.isSleeping ? "var(--text)" : "var(--rose-dark)"
+							}}
 						>
 							{isSaving
 								? "Saving..."
-								: modal.payload
-									? "Update Activity"
-									: "Save Activity"}
+								: modal.payload?.isSleeping
+									? "End Sleep ☀️"
+									: modal.type === "sleep" && !formState.isManualSleep
+										? "Start Sleep 🌙"
+										: modal.payload
+											? "Update Activity"
+											: "Save Activity"}
 						</button>
 						<button
 							className="cancel-btn"

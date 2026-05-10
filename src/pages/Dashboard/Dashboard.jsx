@@ -141,6 +141,12 @@ export default function Dashboard() {
 	);
 
 	const diapersToday = todayLogs.filter((l) => l.type === "diaper").length;
+	
+	const sleepLogsToday = todayLogs.filter((l) => l.type === "sleep" && !l.isSleeping);
+	const totalSleepMinutes = sleepLogsToday.reduce((acc, curr) => acc + (curr.duration || 0), 0);
+	const napCount = sleepLogsToday.filter(l => l.sleepType === "Nap").length;
+	const nightSleepCount = sleepLogsToday.filter(l => l.sleepType === "Night Sleep").length;
+	const isSleepingNow = todayLogs.some(l => l.type === "sleep" && l.isSleeping);
 
 	const lastMilk = milkLogs[0];
 	const lastDiaper = todayLogs.filter((l) => l.type === "diaper")[0];
@@ -293,6 +299,13 @@ export default function Dashboard() {
 						subtext={`${pumpLogs.length} sessions`}
 						color="var(--color-pump)"
 						icon="💧"
+					/>
+					<MetricCard
+						title="Sleep Today"
+						value={`${Math.floor(totalSleepMinutes / 60)}h ${totalSleepMinutes % 60}m`}
+						subtext={isSleepingNow ? "Currently Sleeping 🌙" : `${napCount} Naps • ${nightSleepCount} Night`}
+						color="var(--color-sleep)"
+						icon="😴"
 					/>
 				</div>
 			</div>
